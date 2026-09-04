@@ -197,8 +197,8 @@ stage "Generate the signing key"
 DEFAULT_EMAIL="$(git config user.email || true)"
 ask EMAIL "Email for the key comment [${DEFAULT_EMAIL:-you@example.com}]:"
 if [[ -z "$EMAIL" && -n "$DEFAULT_EMAIL" ]]; then EMAIL="$DEFAULT_EMAIL"; fi
-ask KEY_PATH "Key path [$HOME/.ssh/ai-bank_sign]:"
-if [[ -z "$KEY_PATH" ]]; then KEY_PATH="$HOME/.ssh/ai-bank_sign"; fi
+ask KEY_PATH "Key path [$HOME/.ssh/clawbank_sign]:"
+if [[ -z "$KEY_PATH" ]]; then KEY_PATH="$HOME/.ssh/clawbank_sign"; fi
 if [[ -f "$KEY_PATH" ]]; then
   say "A key already exists at $KEY_PATH — reusing it."
   if [[ ! -f "$KEY_PATH.pub" ]]; then
@@ -304,7 +304,7 @@ if confirm "Push one empty signed commit on scratch branch $BRANCH (deleted afte
     exit 1
   fi
   git push -q origin "$BRANCH"
-  REPO="$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null || echo kudosscience/ai-bank)"
+  REPO="$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null || echo kudosscience/clawbank)"
   if [[ "$(gh api "repos/$REPO/commits/$BRANCH" --jq '.commit.verification.verified')" == "true" ]]; then
     say "GitHub verification: verified=true"
   else

@@ -1,6 +1,6 @@
 # CONTEXT.md
 
-Domain glossary for AI Bank. Terms only — no implementation details.
+Domain glossary for ClawBank. Terms only — no implementation details.
 
 - **Credit**: the display unit of value (1.0). Credits are virtual, fixed-supply, and fungible.
 - **Base unit**: the smallest integer unit of value. 1 credit = 1,000,000 base units.

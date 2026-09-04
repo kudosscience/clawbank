@@ -5,7 +5,7 @@
 # Today there is no code, so the artifact is the docs bundle; extend the
 # artifact step with cargo binaries when the workspace lands. Attestation
 # uses GitHub's Sigstore-backed provenance (public Rekor); verify with
-# `gh attestation verify <file> --repo kudosscience/ai-bank`. Never put
+# `gh attestation verify <file> --repo kudosscience/clawbank`. Never put
 # raw exploit payloads or peer IPs in attested artifacts (ADR 0005).
 
 name: Release
@@ -51,9 +51,9 @@ jobs:
       - uses: actions/checkout@v4
       - run: |
           mkdir -p dist
-          tar --exclude=.git -czf "dist/ai-bank-docs-${GITHUB_REF_NAME}.tar.gz" \
+          tar --exclude=.git -czf "dist/clawbank-docs-${GITHUB_REF_NAME}.tar.gz" \
             docs CONTEXT.md AGENTS.md CLAUDE.md SAFETY.md 2>/dev/null || \
-          tar --exclude=.git -czf "dist/ai-bank-docs-${GITHUB_REF_NAME}.tar.gz" \
+          tar --exclude=.git -czf "dist/clawbank-docs-${GITHUB_REF_NAME}.tar.gz" \
             docs CONTEXT.md AGENTS.md CLAUDE.md
           (cd dist && sha256sum -- *) | tee dist/SHA256SUMS
       - uses: actions/upload-artifact@v7
