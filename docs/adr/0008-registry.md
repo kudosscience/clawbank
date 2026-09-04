@@ -4,7 +4,7 @@ The shared registry is Kademlia DHT value records on the libp2p swarm (ADR 0002)
 
 ## Status
 
-Accepted — implements wayfinder ticket [#8 Shared registry: Kademlia DHT for peer discovery](https://github.com/kudosscience/ai-bank/issues/8) → `research/shared-registry` (`docs/research/shared-registry.md:1` on `research/shared-registry`). Depends on ADRs 0001/0002, aligns with ADR 0007 data-model `AccountId=PeerId` and redb persistence.
+Accepted — implements wayfinder ticket [#8 Shared registry: Kademlia DHT for peer discovery](https://github.com/kudosscience/clawbank/issues/8) → `research/shared-registry` (`docs/research/shared-registry.md:1` on `research/shared-registry`). Depends on ADRs 0001/0002, aligns with ADR 0007 data-model `AccountId=PeerId` and redb persistence.
 
 *Note: ticket text requested 0007 for this ADR; 0007 is already `docs/adr/0007-data-model.md` (PeerId=AccountId), so this records as 0008 to keep numbering monotonic.*
 

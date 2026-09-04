@@ -4,7 +4,7 @@ FAL-2 reputation = composite of (a) volume at or above `DUST_THRESHOLD=100`, (b)
 
 ## Status
 
-Accepted — implements wayfinder ticket [#11 Reputation computation: metrics, decay, and thresholds](https://github.com/kudosscience/ai-bank/issues/11) (grilling, all recommendations accepted). Depends on ADRs 0001/0002/0004/0006/0007/0009.
+Accepted — implements wayfinder ticket [#11 Reputation computation: metrics, decay, and thresholds](https://github.com/kudosscience/clawbank/issues/11) (grilling, all recommendations accepted). Depends on ADRs 0001/0002/0004/0006/0007/0009.
 
 ## Context
 

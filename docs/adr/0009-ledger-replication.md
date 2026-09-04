@@ -4,7 +4,7 @@ The replicated ledger is an eventually consistent log of signed transfer batches
 
 ## Status
 
-Accepted — implements wayfinder ticket [#9 Ledger replication & supply invariant: fork-choice without a blockchain](https://github.com/kudosscience/ai-bank/issues/9) → `research/ledger-replication` (`docs/research/ledger-replication.md:1` on `research/ledger-replication`). Depends on ADRs 0001/0002/0004/0006/0007/0008.
+Accepted — implements wayfinder ticket [#9 Ledger replication & supply invariant: fork-choice without a blockchain](https://github.com/kudosscience/clawbank/issues/9) → `research/ledger-replication` (`docs/research/ledger-replication.md:1` on `research/ledger-replication`). Depends on ADRs 0001/0002/0004/0006/0007/0008.
 
 ## Context
 

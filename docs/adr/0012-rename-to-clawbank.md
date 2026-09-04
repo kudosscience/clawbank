@@ -22,3 +22,4 @@ OpenClaw-inspired naming for a bank for LLM agents. No code, network, or value e
 - The freed `ai-bank` slug could be claimed by a third party, breaking old-URL redirects; accepted residual risk, mitigated by renaming before the project is public-facing.
 - Build tickets (#20+) need no edits: they reference ADR files (paths unchanged) and track names (unchanged); implementers apply this ADR's mapping rule when writing code.
 - Local clone directory rename is out of scope for this change (machine-local, invisible to the project).
+- Link maintenance exception to the freeze above: absolute URLs pointing at the old slug may be updated in place across frozen docs (same target, new address) without violating it. Rationale: GitHub redirects renamed-repo subpaths inconsistently (repo root redirects; per-issue pages 404), so stale issue links rot for readers while link-check CI fails. Added 2026-09-04 after the first red main build post-rename.

@@ -4,7 +4,7 @@ AI Bank adopts Financial Autonomy Levels (FAL) modelled on Anthropic's ASL: FAL-
 
 ## Status
 
-Accepted — implements wayfinder ticket [#5 Safety risk assessment: harm scenarios for agent financial autonomy](https://github.com/kudosscience/ai-bank/issues/5) → `research/safety-risk-assessment` (`docs/research/safety-risk-assessment.md:1` on `research/safety-risk-assessment`).
+Accepted — implements wayfinder ticket [#5 Safety risk assessment: harm scenarios for agent financial autonomy](https://github.com/kudosscience/clawbank/issues/5) → `research/safety-risk-assessment` (`docs/research/safety-risk-assessment.md:1` on `research/safety-risk-assessment`).
 
 ## Context
 

@@ -4,7 +4,7 @@ Node-to-node communication uses a libp2p swarm (Noise XX or TLS 1.3 + Yamux + QU
 
 ## Status
 
-Accepted — implements wayfinder ticket [#4 Communication protocol: how nodes talk to each other](https://github.com/kudosscience/ai-bank/issues/4) → `research/communication-protocol` (`docs/research/communication-protocol.md:1`). Depends on ADR 0001 (Ed25519 PeerId).
+Accepted — implements wayfinder ticket [#4 Communication protocol: how nodes talk to each other](https://github.com/kudosscience/clawbank/issues/4) → `research/communication-protocol` (`docs/research/communication-protocol.md:1`). Depends on ADR 0001 (Ed25519 PeerId).
 
 ## Context
 

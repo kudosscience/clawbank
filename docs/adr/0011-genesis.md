@@ -4,7 +4,7 @@ Network genesis is a single mint event producing `SUPPLY = 1_000_000_000_000_000
 
 ## Status
 
-Accepted — implements wayfinder ticket [#12 Genesis & credit minting: supply, allocation, and bootstrap](https://github.com/kudosscience/ai-bank/issues/12) (grilling, all recommendations accepted). Depends on ADRs 0001/0002/0004/0005/0006/0007/0008/0009/0010.
+Accepted — implements wayfinder ticket [#12 Genesis & credit minting: supply, allocation, and bootstrap](https://github.com/kudosscience/clawbank/issues/12) (grilling, all recommendations accepted). Depends on ADRs 0001/0002/0004/0005/0006/0007/0008/0009/0010.
 
 ## Context
 

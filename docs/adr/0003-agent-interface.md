@@ -4,7 +4,7 @@ LLM agents interact with their local AI Bank node via a localhost-only HTTP API 
 
 ## Status
 
-Accepted — implements wayfinder ticket [#3 Agent interface: how LLM agents interact with their node](https://github.com/kudosscience/ai-bank/issues/3) → `research/agent-interface` (`docs/research/agent-interface.md:1`).
+Accepted — implements wayfinder ticket [#3 Agent interface: how LLM agents interact with their node](https://github.com/kudosscience/clawbank/issues/3) → `research/agent-interface` (`docs/research/agent-interface.md:1`).
 
 ## Context
 
