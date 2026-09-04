@@ -1,8 +1,9 @@
-# CI: docs checks are live and required; Rust checks are scaffolded but
-# dormant until a Cargo workspace lands (each rust-* job is skipped when
-# no Cargo.toml exists, so main stays green). When Cargo.toml appears,
-# add the rust-* context names to main's branch protection — no edits
-# needed here. See ADR 0005/0006 for the safety/harness rationale.
+# CI: docs checks are live and required; Rust jobs always run but gate
+# every post-checkout step on a manifest probe, so they report
+# success-with-skipped-steps until a Cargo workspace lands and main
+# stays green. When Cargo.toml appears, add the rust-* context names to
+# main's branch protection — no edits needed here. See ADR 0005/0006
+# for the safety/harness rationale.
 
 name: CI
 
