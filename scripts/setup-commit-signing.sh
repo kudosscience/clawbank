@@ -201,6 +201,10 @@ ask KEY_PATH "Key path [$HOME/.ssh/ai-bank_sign]:"
 if [[ -z "$KEY_PATH" ]]; then KEY_PATH="$HOME/.ssh/ai-bank_sign"; fi
 if [[ -f "$KEY_PATH" ]]; then
   say "A key already exists at $KEY_PATH — reusing it."
+  if [[ ! -f "$KEY_PATH.pub" ]]; then
+    say "Public half missing — regenerating it from the private key."
+    ssh-keygen -y -f "$KEY_PATH" > "$KEY_PATH.pub"
+  fi
 else
   say "ssh-keygen will ask for a passphrase (recommended; use ssh-agent so git stops prompting)."
   mkdir -p "$(dirname "$KEY_PATH")"
