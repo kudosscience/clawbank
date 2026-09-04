@@ -203,6 +203,7 @@ if [[ -f "$KEY_PATH" ]]; then
   say "A key already exists at $KEY_PATH — reusing it."
 else
   say "ssh-keygen will ask for a passphrase (recommended; use ssh-agent so git stops prompting)."
+  mkdir -p "$(dirname "$KEY_PATH")"
   ssh-keygen -t ed25519 -C "$EMAIL" -f "$KEY_PATH"
   say "Keypair created."
 fi
@@ -220,10 +221,13 @@ fi
 if ! "$REGISTERED"; then
   warn "gh could not register the key (usually a missing scope)."
   if confirm "Grant the signing-key scope and retry automatically"; then
-    gh auth refresh -s admin:ssh_signing_key
-    if gh ssh-key add "$PUB" --type signing --title "commit signing ($(hostname))" >/dev/null 2>&1; then
-      REGISTERED=true
-      say "Registered via gh."
+    if gh auth refresh -s admin:ssh_signing_key; then
+      if gh ssh-key add "$PUB" --type signing --title "commit signing ($(hostname))" >/dev/null 2>&1; then
+        REGISTERED=true
+        say "Registered via gh."
+      fi
+    else
+      warn "scope refresh failed — continuing to manual registration."
     fi
   fi
 fi
@@ -270,28 +274,41 @@ say "allowedSignersFile = $(git config --global --get gpg.ssh.allowedSignersFile
 # ── Stage 5: verify ───────────────────────────────────────────────────
 stage "Verify end to end"
 BASE="$(git branch --show-current)"
-if [[ -z "$BASE" ]]; then BASE="main"; fi
-BRANCH="probe/signing"
+DETACHED=false
+if [[ -z "$BASE" ]]; then
+  DETACHED=true
+  ORIG_HEAD="$(git rev-parse HEAD)"
+  BASE="main"
+fi
+BRANCH="probe/signing-$$"
+cleanup_probe() {
+  if "$DETACHED"; then
+    git checkout -q --detach "$ORIG_HEAD" 2>/dev/null || true
+  else
+    git checkout -q "$BASE" 2>/dev/null || true
+  fi
+  git branch -q -D "$BRANCH" 2>/dev/null || true
+}
 if confirm "Push one empty signed commit on scratch branch $BRANCH (deleted afterwards)"; then
-  git checkout -q -B "$BRANCH"
+  trap cleanup_probe EXIT
+  git checkout -q -b "$BRANCH"
   git commit -q --allow-empty -m "probe: commit signing"
   if git verify-commit HEAD >/dev/null 2>&1; then
     say "local signature: good"
   else
     warn "local verification failed — is the key registered and allowed_signers correct?"
-    git checkout -q "$BASE"
-    git branch -q -D "$BRANCH"
     exit 1
   fi
   git push -q origin "$BRANCH"
-  if [[ "$(gh api "repos/kudosscience/ai-bank/commits/$BRANCH" --jq '.commit.verification.verified')" == "true" ]]; then
+  REPO="$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null || echo kudosscience/ai-bank)"
+  if [[ "$(gh api "repos/$REPO/commits/$BRANCH" --jq '.commit.verification.verified')" == "true" ]]; then
     say "GitHub verification: verified=true"
   else
     warn "GitHub does not show the commit as verified — check the key is a Signing Key."
   fi
-  git checkout -q "$BASE"
-  git branch -q -D "$BRANCH"
   git push -q origin --delete "$BRANCH"
+  trap - EXIT
+  cleanup_probe
   say "Probe branch removed."
 else
   say "Skipped verification — re-run this wizard any time to finish it."
