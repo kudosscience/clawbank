@@ -4,7 +4,7 @@ Nodes generate an Ed25519 keypair locally on first run and derive a libp2p `Peer
 
 ## Status
 
-Accepted — implements wayfinder ticket [#2 Node identity: how nodes prove who they are](https://github.com/kudosscience/ai-bank/issues/2) → `research/node-identity` (`docs/research/node-identity.md`).
+Accepted — implements wayfinder ticket [#2 Node identity: how nodes prove who they are](https://github.com/kudosscience/clawbank/issues/2) → `research/node-identity` (`docs/research/node-identity.md`).
 
 ## Context
 

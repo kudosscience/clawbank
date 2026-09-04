@@ -4,7 +4,7 @@ The canonical data model is `AccountId = PeerId` (Ed25519, ADR 0001), `Transfer 
 
 ## Status
 
-Accepted — implements wayfinder ticket [#10 Account & transaction data model](https://github.com/kudosscience/ai-bank/issues/10) → `research/data-model` (`docs/research/data-model.md:1` on `research/data-model`). Depends on ADRs 0001/0002/0003/0004, unblocks ledger replication and reputation/genesis.
+Accepted — implements wayfinder ticket [#10 Account & transaction data model](https://github.com/kudosscience/clawbank/issues/10) → `research/data-model` (`docs/research/data-model.md:1` on `research/data-model`). Depends on ADRs 0001/0002/0003/0004, unblocks ledger replication and reputation/genesis.
 
 ## Context
 

@@ -4,7 +4,7 @@ FAL-2 safety is proved by a local `cargo test` harness (transaction integrity, S
 
 ## Status
 
-Accepted — implements wayfinder ticket [#7 Safety evaluation framework: what proves safety at each risk level](https://github.com/kudosscience/ai-bank/issues/7) (grilling, dependency ADR 0004 FAL-1..4). Depends on ADR 0004 (FAL) and ADR 0005 (SAFETY.md/Risk Reports/git+Rekor).
+Accepted — implements wayfinder ticket [#7 Safety evaluation framework: what proves safety at each risk level](https://github.com/kudosscience/clawbank/issues/7) (grilling, dependency ADR 0004 FAL-1..4). Depends on ADR 0004 (FAL) and ADR 0005 (SAFETY.md/Risk Reports/git+Rekor).
 
 ## Context
 

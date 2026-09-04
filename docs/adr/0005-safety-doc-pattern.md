@@ -4,7 +4,7 @@ AI Bank publishes safety as a single repo-root `SAFETY.md` following Anthropic R
 
 ## Status
 
-Accepted — implements wayfinder ticket [#6 Safety documentation pattern: how to publicly justify safety at each level](https://github.com/kudosscience/ai-bank/issues/6) → `research/safety-doc-pattern` (`docs/research/safety-doc-pattern.md:1` on `research/safety-doc-pattern`). Depends on ADR 0004 (FAL-1..4).
+Accepted — implements wayfinder ticket [#6 Safety documentation pattern: how to publicly justify safety at each level](https://github.com/kudosscience/clawbank/issues/6) → `research/safety-doc-pattern` (`docs/research/safety-doc-pattern.md:1` on `research/safety-doc-pattern`). Depends on ADR 0004 (FAL-1..4).
 
 ## Context
 
