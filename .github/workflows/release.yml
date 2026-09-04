@@ -1,0 +1,99 @@
+# CD: tag-driven releases with Sigstore/Rekor attestation.
+# - `v*` tags: full release. Gates: SAFETY.md Version header must equal
+#   the tag, and a docs/safety/risk-report-* must exist (ADR 0005/0006).
+# - `safety/v*` tags: policy-only check (SAFETY.md header == tag).
+# Today there is no code, so the artifact is the docs bundle; extend the
+# artifact step with cargo binaries when the workspace lands. Attestation
+# uses GitHub's Sigstore-backed provenance (public Rekor); verify with
+# `gh attestation verify <file> --repo kudosscience/ai-bank`. Never put
+# raw exploit payloads or peer IPs in attested artifacts (ADR 0005).
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+      - "safety/v*"
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      kind: ${{ steps.v.outputs.kind }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          if [[ "$tag" == safety/* ]]; then
+            echo "kind=safety" >> "$GITHUB_OUTPUT"
+            echo "version=${tag#safety/v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "kind=code" >> "$GITHUB_OUTPUT"
+            echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+          fi
+      - run: bash scripts/ci/release-gate.sh "${{ steps.v.outputs.kind }}" "${{ steps.v.outputs.version }}"
+
+  artifact:
+    name: artifact
+    needs: gate
+    if: needs.gate.outputs.kind == 'code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          mkdir -p dist
+          tar --exclude=.git -czf "dist/ai-bank-docs-${GITHUB_REF_NAME}.tar.gz" \
+            docs CONTEXT.md AGENTS.md CLAUDE.md SAFETY.md 2>/dev/null || \
+          tar --exclude=.git -czf "dist/ai-bank-docs-${GITHUB_REF_NAME}.tar.gz" \
+            docs CONTEXT.md AGENTS.md CLAUDE.md
+          (cd dist && sha256sum -- *) | tee dist/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-artifact
+          path: dist/
+
+  attest:
+    name: attest
+    needs: [gate, artifact]
+    if: needs.gate.outputs.kind == 'code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      id-token: write
+      contents: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-artifact
+          path: dist/
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: "dist/*"
+
+  publish:
+    name: publish
+    needs: [gate, artifact]
+    if: needs.gate.outputs.kind == 'code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-artifact
+          path: dist/
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true

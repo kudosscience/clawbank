@@ -1,0 +1,3 @@
+# Default owner for everything. Auto-requests review on PRs;
+# blocking power comes from branch protection, not this file.
+* @kudosscience

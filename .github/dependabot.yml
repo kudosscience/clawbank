@@ -1,0 +1,9 @@
+# Weekly updates for GitHub Actions. Add the `cargo` ecosystem here
+# when the Rust workspace (Cargo.toml) lands — not before, or the
+# updater errors on the missing manifest.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

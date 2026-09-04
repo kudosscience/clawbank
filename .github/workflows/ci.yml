@@ -1,0 +1,107 @@
+# CI: docs checks are live and required; Rust checks are scaffolded but
+# dormant until a Cargo workspace lands (each rust-* job is skipped when
+# no Cargo.toml exists, so main stays green). When Cargo.toml appears,
+# add the rust-* context names to main's branch protection — no edits
+# needed here. See ADR 0005/0006 for the safety/harness rationale.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docs-lint:
+    name: docs-lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DavidAnson/markdownlint-cli2-action@v19
+        with:
+          globs: "**/*.md"
+          config: .github/markdownlint.json
+
+  adr-check:
+    name: adr-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/ci/adr-check.sh
+
+  link-check:
+    name: link-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --no-progress
+            --max-retries 3
+            --timeout 20
+            --max-concurrency 8
+            --accept 200,201,202,203,204,206,301,302,303,307,308
+            "**/*.md"
+
+  context-check:
+    name: context-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/ci/context-check.sh
+
+  rust-fmt:
+    name: rust-fmt
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: hashFiles('Cargo.toml') != ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all -- --check
+
+  rust-clippy:
+    name: rust-clippy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: hashFiles('Cargo.toml') != ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - run: cargo clippy --all-targets -- -D warnings
+
+  rust-test:
+    name: rust-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: hashFiles('Cargo.toml') != ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --all
+
+  rust-audit:
+    name: rust-audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: hashFiles('Cargo.lock') != ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@cargo-audit
+      - run: cargo audit
+      - uses: taiki-e/install-action@cargo-deny
+      - run: cargo deny check advisories bans licenses sources
