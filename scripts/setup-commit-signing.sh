@@ -197,8 +197,13 @@ stage "Generate the signing key"
 DEFAULT_EMAIL="$(git config user.email || true)"
 ask EMAIL "Email for the key comment [${DEFAULT_EMAIL:-you@example.com}]:"
 if [[ -z "$EMAIL" && -n "$DEFAULT_EMAIL" ]]; then EMAIL="$DEFAULT_EMAIL"; fi
-ask KEY_PATH "Key path [$HOME/.ssh/ai-bank_sign]:"
-if [[ -z "$KEY_PATH" ]]; then KEY_PATH="$HOME/.ssh/ai-bank_sign"; fi
+DEFAULT_KEY_PATH="$HOME/.ssh/clawbank_sign"
+if [[ ! -f "$DEFAULT_KEY_PATH" && -f "$HOME/.ssh/ai-bank_sign" ]]; then
+  DEFAULT_KEY_PATH="$HOME/.ssh/ai-bank_sign"
+  say "Found a pre-rename key; defaulting to it (nothing is migrated without your say-so)."
+fi
+ask KEY_PATH "Key path [$DEFAULT_KEY_PATH]:"
+if [[ -z "$KEY_PATH" ]]; then KEY_PATH="$DEFAULT_KEY_PATH"; fi
 if [[ -f "$KEY_PATH" ]]; then
   say "A key already exists at $KEY_PATH — reusing it."
   if [[ ! -f "$KEY_PATH.pub" ]]; then
@@ -304,7 +309,14 @@ if confirm "Push one empty signed commit on scratch branch $BRANCH (deleted afte
     exit 1
   fi
   git push -q origin "$BRANCH"
-  REPO="$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null || echo kudosscience/ai-bank)"
+  REPO="$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null || true)"
+  if [[ -z "$REPO" ]]; then
+    url="$(git remote get-url origin 2>/dev/null || true)"
+    url="${url%.git}"
+    if [[ "$url" == *github.com* ]]; then REPO="${url##*github.com[/:]}"; fi
+    if [[ "$REPO" != */* ]]; then REPO=""; fi
+  fi
+  if [[ -z "$REPO" ]]; then REPO="kudosscience/clawbank"; fi
   if [[ "$(gh api "repos/$REPO/commits/$BRANCH" --jq '.commit.verification.verified')" == "true" ]]; then
     say "GitHub verification: verified=true"
   else
