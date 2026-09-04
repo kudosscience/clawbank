@@ -1,8 +1,9 @@
-# CI: docs checks are live and required; Rust checks are scaffolded but
-# dormant until a Cargo workspace lands (each rust-* job is skipped when
-# no Cargo.toml exists, so main stays green). When Cargo.toml appears,
-# add the rust-* context names to main's branch protection — no edits
-# needed here. See ADR 0005/0006 for the safety/harness rationale.
+# CI: docs checks are live and required; Rust jobs always run but gate
+# every post-checkout step on a manifest probe, so they report
+# success-with-skipped-steps until a Cargo workspace lands and main
+# stays green. When Cargo.toml appears, add the rust-* context names to
+# main's branch protection — no edits needed here. See ADR 0005/0006
+# for the safety/harness rationale.
 
 name: CI
 
@@ -25,7 +26,7 @@ jobs:
       - uses: DavidAnson/markdownlint-cli2-action@v19
         with:
           globs: "**/*.md"
-          config: .github/markdownlint.json
+          config: .github/.markdownlint-cli2.jsonc
 
   adr-check:
     name: adr-check
@@ -59,49 +60,71 @@ jobs:
       - uses: actions/checkout@v4
       - run: bash scripts/ci/context-check.sh
 
+  # NOTE: hashFiles() is not allowed in jobs.<id>.if, so each rust job
+  # always runs but gates every step after checkout on a file probe.
+  # Jobs report success-with-skipped-steps until the workspace lands.
   rust-fmt:
     name: rust-fmt
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: hashFiles('Cargo.toml') != ''
     steps:
       - uses: actions/checkout@v4
+      - id: gate
+        run: echo "cargo=$([ -f Cargo.toml ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
       - uses: dtolnay/rust-toolchain@stable
+        if: steps.gate.outputs.cargo == 'true'
         with:
           components: rustfmt
-      - run: cargo fmt --all -- --check
+      - if: steps.gate.outputs.cargo == 'true'
+        run: cargo fmt --all -- --check
 
   rust-clippy:
     name: rust-clippy
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: hashFiles('Cargo.toml') != ''
     steps:
       - uses: actions/checkout@v4
+      - id: gate
+        run: echo "cargo=$([ -f Cargo.toml ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
       - uses: dtolnay/rust-toolchain@stable
+        if: steps.gate.outputs.cargo == 'true'
         with:
           components: clippy
-      - run: cargo clippy --all-targets -- -D warnings
+      - if: steps.gate.outputs.cargo == 'true'
+        run: cargo clippy --all-targets -- -D warnings
 
   rust-test:
     name: rust-test
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    if: hashFiles('Cargo.toml') != ''
     steps:
       - uses: actions/checkout@v4
+      - id: gate
+        run: echo "cargo=$([ -f Cargo.toml ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo test --all
+        if: steps.gate.outputs.cargo == 'true'
+      - if: steps.gate.outputs.cargo == 'true'
+        run: cargo test --all
 
   rust-audit:
     name: rust-audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: hashFiles('Cargo.lock') != ''
     steps:
       - uses: actions/checkout@v4
+      - id: gate
+        run: echo "lock=$([ -f Cargo.lock ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
       - uses: dtolnay/rust-toolchain@stable
-      - uses: taiki-e/install-action@cargo-audit
-      - run: cargo audit
-      - uses: taiki-e/install-action@cargo-deny
-      - run: cargo deny check advisories bans licenses sources
+        if: steps.gate.outputs.lock == 'true'
+      - uses: taiki-e/install-action@v2
+        if: steps.gate.outputs.lock == 'true'
+        with:
+          tool: cargo-audit
+      - if: steps.gate.outputs.lock == 'true'
+        run: cargo audit
+      - uses: taiki-e/install-action@v2
+        if: steps.gate.outputs.lock == 'true'
+        with:
+          tool: cargo-deny
+      - if: steps.gate.outputs.lock == 'true'
+        run: cargo deny check advisories bans licenses sources
