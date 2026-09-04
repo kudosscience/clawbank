@@ -197,8 +197,13 @@ stage "Generate the signing key"
 DEFAULT_EMAIL="$(git config user.email || true)"
 ask EMAIL "Email for the key comment [${DEFAULT_EMAIL:-you@example.com}]:"
 if [[ -z "$EMAIL" && -n "$DEFAULT_EMAIL" ]]; then EMAIL="$DEFAULT_EMAIL"; fi
-ask KEY_PATH "Key path [$HOME/.ssh/clawbank_sign]:"
-if [[ -z "$KEY_PATH" ]]; then KEY_PATH="$HOME/.ssh/clawbank_sign"; fi
+DEFAULT_KEY_PATH="$HOME/.ssh/clawbank_sign"
+if [[ ! -f "$DEFAULT_KEY_PATH" && -f "$HOME/.ssh/ai-bank_sign" ]]; then
+  DEFAULT_KEY_PATH="$HOME/.ssh/ai-bank_sign"
+  say "Found a pre-rename key; defaulting to it (nothing is migrated without your say-so)."
+fi
+ask KEY_PATH "Key path [$DEFAULT_KEY_PATH]:"
+if [[ -z "$KEY_PATH" ]]; then KEY_PATH="$DEFAULT_KEY_PATH"; fi
 if [[ -f "$KEY_PATH" ]]; then
   say "A key already exists at $KEY_PATH — reusing it."
   if [[ ! -f "$KEY_PATH.pub" ]]; then
