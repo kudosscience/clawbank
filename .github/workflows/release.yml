@@ -56,7 +56,7 @@ jobs:
           tar --exclude=.git -czf "dist/ai-bank-docs-${GITHUB_REF_NAME}.tar.gz" \
             docs CONTEXT.md AGENTS.md CLAUDE.md
           (cd dist && sha256sum -- *) | tee dist/SHA256SUMS
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-artifact
           path: dist/
