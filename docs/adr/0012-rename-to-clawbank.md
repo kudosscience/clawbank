@@ -4,7 +4,7 @@ The project formerly called AI Bank is ClawBank. Display form `ClawBank`; code, 
 
 ## Status
 
-Accepted - grilling, all recommendations accepted. Supersedes the naming portions of ADRs 0001-0011 only; their technical decisions stand unchanged.
+Accepted — grilling, all recommendations accepted. Supersedes the naming portions of ADRs 0001-0011 only; their technical decisions stand unchanged.
 
 ## Context
 

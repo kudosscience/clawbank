@@ -309,7 +309,14 @@ if confirm "Push one empty signed commit on scratch branch $BRANCH (deleted afte
     exit 1
   fi
   git push -q origin "$BRANCH"
-  REPO="$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null || echo kudosscience/clawbank)"
+  REPO="$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null || true)"
+  if [[ -z "$REPO" ]]; then
+    url="$(git remote get-url origin 2>/dev/null || true)"
+    url="${url%.git}"
+    if [[ "$url" == *github.com* ]]; then REPO="${url##*github.com[/:]}"; fi
+    if [[ "$REPO" != */* ]]; then REPO=""; fi
+  fi
+  if [[ -z "$REPO" ]]; then REPO="kudosscience/clawbank"; fi
   if [[ "$(gh api "repos/$REPO/commits/$BRANCH" --jq '.commit.verification.verified')" == "true" ]]; then
     say "GitHub verification: verified=true"
   else
