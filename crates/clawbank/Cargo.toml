@@ -2,13 +2,14 @@
 name = "clawbank"
 version = "0.1.0"
 edition = "2021"
+publish = false
 
 [[bin]]
 name = "clawbank"
 path = "src/main.rs"
 
 [dependencies]
-clawbank-identity = { path = "../clawbank-identity" }
+clawbank-identity = { version = "0.1.0", path = "../clawbank-identity" }
 clap = { version = "4", features = ["derive"] }
 
 [dev-dependencies]
