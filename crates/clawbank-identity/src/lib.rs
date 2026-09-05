@@ -24,15 +24,17 @@ pub fn peer_id_base58(id: &PeerId) -> String {
 }
 
 /// Write bytes with owner-only permissions on Unix (profile ACLs elsewhere).
+#[cfg(unix)]
+fn parent_or_dot(path: &Path) -> &Path {
+    path.parent().unwrap_or(Path::new("."))
+}
+
 fn write_secure(path: &Path, bytes: &[u8]) -> io::Result<()> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
-        fs::create_dir_all(path.parent().unwrap_or(Path::new(".")))?;
-        fs::set_permissions(
-            path.parent().unwrap_or(Path::new(".")),
-            fs::Permissions::from_mode(0o700),
-        )?;
+        fs::create_dir_all(parent_or_dot(path))?;
+        fs::set_permissions(parent_or_dot(path), fs::Permissions::from_mode(0o700))?;
         let mut opts = fs::OpenOptions::new();
         opts.write(true).create(true).truncate(true).mode(0o600);
         io::Write::write_all(&mut opts.open(path)?, bytes)
@@ -160,6 +162,34 @@ mod tests {
     }
 
     #[test]
+    fn peer_id_derivation_is_deterministic_for_fixed_key_bytes() {
+        // Golden vector, pinned from a real generated key: the same protobuf
+        // bytes must always derive this PeerId through every construction
+        // path. Breaks loudly if derivation, encoding, or multihash choice
+        // changes.
+        let file = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join("identity.key");
+        let bytes = std::fs::read(&file).unwrap();
+        let via_load = peer_id(&load(&file).unwrap());
+        let via_direct = peer_id(
+            &Keypair::from_protobuf_encoding(&bytes)
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+                .unwrap(),
+        );
+        assert_eq!(via_load, via_direct);
+        assert_eq!(
+            peer_id_base58(&via_load),
+            "12D3KooWKyMerDco2N7NotyV1KukiXb1A4JRsKJAax9v4N9u6X5J"
+        );
+        assert_eq!(
+            peer_id_cid(&via_load),
+            "bafzaajaiaejcbfxcqocmbvcgloudzthflk4zefotpznfuc65nggbf3fqbaijvhpz"
+        );
+    }
+
+    #[test]
     #[cfg(unix)]
     fn saved_identity_file_is_owner_only() {
         use std::os::unix::fs::PermissionsExt;
@@ -191,6 +221,10 @@ mod tests {
         let id = peer_id(&generate());
         let cid = peer_id_cid(&id);
         assert!(cid.starts_with('b'), "CID form must use multibase base32");
+        assert!(
+            cid.starts_with("bafz"),
+            "Ed25519 PeerId CIDs start with bafz per the multicodec table: {cid}"
+        );
         assert_eq!(peer_id_from_cid(&cid).unwrap(), id);
         let raw = data_encoding::BASE32_NOPAD
             .decode(cid[1..].to_uppercase().as_bytes())

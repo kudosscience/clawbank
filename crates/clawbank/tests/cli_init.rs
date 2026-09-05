@@ -17,18 +17,19 @@ fn init(home: &tempfile::TempDir) -> (bool, String) {
     (out.status.success(), String::from_utf8(out.stdout).unwrap())
 }
 
+fn output_value(stdout: &str, label: &str) -> String {
+    stdout
+        .lines()
+        .find_map(|l| l.strip_prefix(label))
+        .unwrap()
+        .to_string()
+}
+
 fn peer_ids(stdout: &str) -> (String, String) {
-    let base58 = stdout
-        .lines()
-        .find_map(|l| l.strip_prefix("Peer ID (base58): "))
-        .unwrap()
-        .to_string();
-    let cid = stdout
-        .lines()
-        .find_map(|l| l.strip_prefix("Peer ID (CID): "))
-        .unwrap()
-        .to_string();
-    (base58, cid)
+    (
+        output_value(stdout, "Peer ID (base58): "),
+        output_value(stdout, "Peer ID (CID): "),
+    )
 }
 
 #[test]
@@ -47,7 +48,7 @@ fn init_after_delete_prints_a_different_peer_id() {
     std::fs::remove_file(home.path().join("identity.key")).unwrap();
     let (ok, second) = init(&home);
     assert!(ok);
-    assert_ne!(peer_ids(&first).0, peer_ids(&second).0);
+    assert_ne!(peer_ids(&first), peer_ids(&second));
 }
 
 #[test]
