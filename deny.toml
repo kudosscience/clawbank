@@ -1,0 +1,64 @@
+# cargo-deny configuration: advisories, banned crates, licenses, sources.
+# Runs in CI (rust-audit job). The clarify entries below pin the license
+# texts of crates whose manifests use the non-SPDX "MIT/Apache-2.0" form.
+
+[advisories]
+db-urls = ["https://github.com/rustsec/advisory-db"]
+yanked = "deny"
+unmaintained = "workspace"
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+highlight = "all"
+
+[licenses]
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "Unicode-3.0",
+]
+confidence-threshold = 0.8
+
+[licenses.private]
+ignore = true
+
+[[licenses.clarify]]
+name = "bitflags"
+expression = "MIT OR Apache-2.0"
+license-files = [
+    { path = "LICENSE-MIT", hash = 0x6485b8ed },
+    { path = "LICENSE-APACHE", hash = 0xa60eea81 },
+]
+
+[[licenses.clarify]]
+name = "bs58"
+expression = "MIT OR Apache-2.0"
+license-files = [
+    { path = "LICENSE-MIT", hash = 0x42d3bf7e },
+    { path = "LICENSE-APACHE", hash = 0xa60eea81 },
+]
+
+[[licenses.clarify]]
+name = "curve25519-dalek-derive"
+expression = "MIT OR Apache-2.0"
+license-files = [
+    { path = "LICENSE-MIT", hash = 0x23f18e03 },
+    { path = "LICENSE-APACHE", hash = 0xa60eea81 },
+]
+
+[[licenses.clarify]]
+name = "version_check"
+expression = "MIT OR Apache-2.0"
+license-files = [
+    { path = "LICENSE-MIT", hash = 0xb7e650f3 },
+    { path = "LICENSE-APACHE", hash = 0xa60eea81 },
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []
