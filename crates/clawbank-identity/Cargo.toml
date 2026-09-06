@@ -7,6 +7,7 @@ publish = false
 
 [dependencies]
 data-encoding = "2"
+fs2 = "0.4"
 libp2p-identity = { version = "0.2", features = ["ed25519", "peerid", "rand"] }
 
 [dev-dependencies]

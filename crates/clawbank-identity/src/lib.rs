@@ -3,57 +3,25 @@
 //! The public key is the identity. Keys are generated locally, persisted
 //! as protobuf, and never leave the machine.
 
-use libp2p_identity::{Keypair, PeerId};
+mod fs_secure;
+mod paths;
+mod peer;
+
+pub use paths::{data_dir, identity_file};
+pub use peer::{peer_id, peer_id_base58, peer_id_cid, peer_id_from_cid};
+
+use fs_secure::{ensure_parent_dir, sibling_path, write_secure};
+use libp2p_identity::Keypair;
 use std::fs;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// Generate a fresh Ed25519 node keypair from the OS random source.
 pub fn generate() -> Keypair {
     Keypair::generate_ed25519()
 }
 
-/// The canonical identity for a keypair: the PeerId derived from its public key.
-pub fn peer_id(keypair: &Keypair) -> PeerId {
-    keypair.public().to_peer_id()
-}
-
-/// The PeerId in base58 text form (`12D3Koo...`).
-pub fn peer_id_base58(id: &PeerId) -> String {
-    id.to_base58()
-}
-
-/// Write bytes with owner-only permissions on Unix (profile ACLs elsewhere).
-fn write_secure(path: &Path, bytes: &[u8]) -> io::Result<()> {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
-        // A parentless path resolves against the process working directory,
-        // which we must never chmod: only manage permissions for an explicit
-        // parent directory, and always open the file itself owner-only.
-        if let Some(parent) = path.parent() {
-            if !parent.as_os_str().is_empty() {
-                fs::create_dir_all(parent)?;
-                fs::set_permissions(parent, fs::Permissions::from_mode(0o700))?;
-            }
-        }
-        let mut opts = fs::OpenOptions::new();
-        opts.write(true).create(true).truncate(true).mode(0o600);
-        io::Write::write_all(&mut opts.open(path)?, bytes)
-    }
-    #[cfg(not(unix))]
-    {
-        // Windows has no Unix permission bits; the file inherits the
-        // user's profile ACLs. Documented limitation, not silent: callers
-        // on shared machines should prefer an encrypted volume.
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        fs::write(path, bytes)
-    }
-}
-
-/// Persist a keypair as protobuf. See [`write_secure`] for permissions.
+/// Persist a keypair as protobuf. See `fs_secure` for permissions.
 pub fn save(keypair: &Keypair, path: &Path) -> io::Result<()> {
     let bytes = keypair
         .to_protobuf_encoding()
@@ -72,8 +40,26 @@ pub fn load(path: &Path) -> io::Result<Keypair> {
 /// Load the identity at `path`, generating and persisting a fresh one
 /// when no file exists yet. Generation failures and corrupt files are
 /// errors; only a missing file triggers generation.
+///
+/// First-run creation holds an inter-process lock on a sibling `.lock`
+/// file, so concurrent `init` processes serialize: exactly one generates,
+/// and every caller returns the identity that is actually stored.
+/// (`flock` releases on process death, so a crashed rival never wedges us.)
 pub fn load_or_generate(path: &Path) -> io::Result<Keypair> {
-    match load(path) {
+    if let ok @ Ok(_) = load(path) {
+        return ok;
+    }
+    // Fast path missed: take the lock, then re-check — the winner may have
+    // published while we waited.
+    let lock_path = sibling_path(path, "lock");
+    ensure_parent_dir(&lock_path)?;
+    let lock = fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(&lock_path)?;
+    fs2::FileExt::lock_exclusive(&lock)?;
+    let outcome = match load(path) {
         Ok(keypair) => Ok(keypair),
         Err(e) if e.kind() == io::ErrorKind::NotFound => {
             let keypair = generate();
@@ -81,70 +67,15 @@ pub fn load_or_generate(path: &Path) -> io::Result<Keypair> {
             Ok(keypair)
         }
         Err(e) => Err(e),
-    }
-}
-
-fn home_dir() -> io::Result<PathBuf> {
-    #[cfg(windows)]
-    let home: Option<PathBuf> = std::env::var("USERPROFILE")
-        .map(PathBuf::from)
-        .ok()
-        .or_else(|| {
-            let drive = std::env::var("HOMEDRIVE").ok()?;
-            let path = std::env::var("HOMEPATH").ok()?;
-            Some(PathBuf::from(format!("{drive}{path}")))
-        });
-    #[cfg(windows)]
-    return home
-        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "home directory is not set"));
-    #[cfg(unix)]
-    return std::env::var("HOME")
-        .map(PathBuf::from)
-        .map_err(|_| io::Error::new(io::ErrorKind::NotFound, "home directory is not set"));
-}
-
-/// The node data directory: `$CLAWBANK_HOME` when set (operators and
-/// tests), otherwise a `.clawbank` folder under the user's home.
-pub fn data_dir() -> io::Result<PathBuf> {
-    match std::env::var("CLAWBANK_HOME") {
-        Ok(dir) => Ok(PathBuf::from(dir)),
-        Err(_) => home_dir().map(|home| home.join(".clawbank")),
-    }
-}
-
-/// The identity file inside [`data_dir`].
-pub fn identity_file() -> io::Result<PathBuf> {
-    data_dir().map(|dir| dir.join("identity.key"))
-}
-
-/// The PeerId in CIDv1 form (`bafz...`): multibase-base32 of the
-/// version + libp2p-key codec + multihash bytes.
-pub fn peer_id_cid(id: &PeerId) -> String {
-    let mut raw = vec![0x01u8, 0x72u8];
-    raw.extend_from_slice(&id.to_bytes());
-    format!(
-        "b{}",
-        data_encoding::BASE32_NOPAD.encode(&raw).to_lowercase()
-    )
-}
-
-/// Parse the CID form produced by [`peer_id_cid`].
-pub fn peer_id_from_cid(text: &str) -> io::Result<PeerId> {
-    let invalid: fn() -> io::Error =
-        || io::Error::new(io::ErrorKind::InvalidData, "not a peer CID");
-    let body = text.strip_prefix('b').ok_or_else(invalid)?;
-    let raw = data_encoding::BASE32_NOPAD
-        .decode(body.to_uppercase().as_bytes())
-        .map_err(|_| invalid())?;
-    if raw.len() < 2 || raw[0] != 0x01 || raw[1] != 0x72 {
-        return Err(invalid());
-    }
-    PeerId::from_bytes(&raw[2..]).map_err(|_| invalid())
+    };
+    let _ = fs2::FileExt::unlock(&lock);
+    outcome
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use libp2p_identity::PeerId;
 
     #[test]
     fn fresh_keypairs_have_distinct_peer_ids() {
@@ -178,6 +109,55 @@ mod tests {
             .mode()
             & 0o777;
         assert_eq!(dir_mode, 0o700, "identity dir must be owner-only");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn resaving_tightens_a_previously_permissive_identity_file() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("identity.key");
+        save(&generate(), &file).unwrap();
+        // Simulate an identity written before hardening (or chmodded open):
+        // re-saving must report success only with the file back at 0600.
+        std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o644)).unwrap();
+        save(&generate(), &file).unwrap();
+        let file_mode = std::fs::metadata(&file).unwrap().permissions().mode() & 0o777;
+        assert_eq!(file_mode, 0o600, "re-saved identity must be owner-only");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn save_leaves_a_pre_existing_parent_dir_alone() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        // An operator-owned dir (e.g. a prepared $CLAWBANK_HOME) keeps its
+        // own mode; only directories save() creates get 0700.
+        std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(0o755)).unwrap();
+        let file = dir.path().join("identity.key");
+        save(&generate(), &file).unwrap();
+        let dir_mode = std::fs::metadata(dir.path()).unwrap().permissions().mode() & 0o777;
+        assert_eq!(dir_mode, 0o755, "pre-existing dir must keep its mode");
+    }
+
+    #[test]
+    fn concurrent_first_run_converges_on_the_stored_identity() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("identity.key");
+        let ids: Vec<String> = std::thread::scope(|s| {
+            (0..8)
+                .map(|_| s.spawn(|| peer_id_base58(&peer_id(&load_or_generate(&file).unwrap()))))
+                .collect::<Vec<_>>()
+                .into_iter()
+                .map(|h| h.join().unwrap())
+                .collect()
+        });
+        assert!(ids.iter().all(|id| *id == ids[0]));
+        assert_eq!(
+            peer_id_base58(&peer_id(&load(&file).unwrap())),
+            ids[0],
+            "every caller must report the identity that is actually stored"
+        );
     }
 
     #[test]
@@ -236,7 +216,22 @@ mod tests {
 
     #[test]
     fn data_dir_defaults_to_dot_clawbank_under_home() {
-        let dir = data_dir().unwrap();
+        // Hermetic inputs: the assertion only holds with no CLAWBANK_HOME
+        // override and a set HOME; otherwise there is nothing to check.
+        // No other test reads process env, so remove/restore is race-free.
+        let saved_override = std::env::var("CLAWBANK_HOME").ok();
+        std::env::remove_var("CLAWBANK_HOME");
+        let outcome = std::env::var("HOME").ok().map(|home| {
+            let dir = data_dir().expect("HOME is set, so data_dir must resolve");
+            (home, dir)
+        });
+        if let Some(value) = saved_override {
+            std::env::set_var("CLAWBANK_HOME", value);
+        }
+        let Some((home, dir)) = outcome else {
+            return;
+        };
+        assert_eq!(dir.parent().unwrap(), Path::new(&home));
         assert_eq!(dir.file_name().unwrap().to_str().unwrap(), ".clawbank");
     }
 

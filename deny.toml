@@ -50,6 +50,14 @@ license-files = [
 ]
 
 [[licenses.clarify]]
+name = "fs2"
+expression = "MIT OR Apache-2.0"
+license-files = [
+    { path = "LICENSE-MIT", hash = 0x7b63ecd5 },
+    { path = "LICENSE-APACHE", hash = 0xa60eea81 },
+]
+
+[[licenses.clarify]]
 name = "version_check"
 expression = "MIT OR Apache-2.0"
 license-files = [

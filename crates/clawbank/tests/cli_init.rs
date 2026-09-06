@@ -68,3 +68,29 @@ fn init_creates_the_identity_file_under_home() {
     assert!(ok);
     assert!(home.path().join("identity.key").is_file());
 }
+
+#[test]
+fn concurrent_init_processes_converge_on_the_stored_identity() {
+    use std::process::Command;
+    let home = home();
+    // Separate OS processes (not threads) so the inter-process first-run
+    // lock is genuinely exercised.
+    let children: Vec<_> = (0..8)
+        .map(|_| {
+            Command::new(env!("CARGO_BIN_EXE_clawbank"))
+                .env("CLAWBANK_HOME", home.path())
+                .arg("init")
+                .stdout(std::process::Stdio::piped())
+                .spawn()
+                .unwrap()
+        })
+        .collect();
+    let mut ids = std::collections::HashSet::new();
+    for child in children {
+        let out = child.wait_with_output().unwrap();
+        assert!(out.status.success());
+        let stdout = String::from_utf8(out.stdout).unwrap();
+        ids.insert(peer_ids(&stdout));
+    }
+    assert_eq!(ids.len(), 1, "all processes must report one identity");
+}
