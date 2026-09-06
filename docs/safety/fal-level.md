@@ -23,6 +23,10 @@ below are skipped):
 - compute marketplace
 - policy-based autonomous spending
 
+Matching is case-, separator-, and camelCase-insensitive
+(`ComputeMarketplace`, `compute_marketplace`, and `computemarketplace`
+all match), so identifiers cannot dodge the gate by picking separators.
+
 Only the gate-owned files (`crates/clawbank-safety/src/lib.rs` and
 `crates/clawbank-safety/tests/fal_gate.rs`) may name these terms in code:
 they own the constant and the gate's term list. `docs/adr/` and
