@@ -61,15 +61,29 @@ fn run_export() -> std::io::Result<()> {
 fn run_import(export: Option<String>) -> std::io::Result<()> {
     let material = match export {
         Some(text) => text,
-        None => {
-            let mut buf = String::new();
-            std::io::Read::read_to_string(&mut std::io::stdin(), &mut buf)?;
-            buf
-        }
+        None => read_bounded_stdin()?,
     };
     let keypair = clawbank_identity::import(&material, &clawbank_identity::identity_file()?)?;
     print_peer_id(&keypair);
     Ok(())
+}
+
+/// Read the piped export from stdin, bounded so a large or never-ending
+/// stream cannot exhaust memory before validation. A valid export is
+/// ~100 bytes; the cap leaves orders of magnitude of headroom.
+fn read_bounded_stdin() -> std::io::Result<String> {
+    const MAX_STDIN_EXPORT_BYTES: usize = 64 * 1024;
+    let stdin = std::io::stdin();
+    let mut limited = std::io::Read::take(stdin, MAX_STDIN_EXPORT_BYTES as u64 + 1);
+    let mut buf = String::new();
+    std::io::Read::read_to_string(&mut limited, &mut buf)?;
+    if buf.len() > MAX_STDIN_EXPORT_BYTES {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "not a valid identity export: input too large",
+        ));
+    }
+    Ok(buf)
 }
 
 fn run() -> std::io::Result<()> {

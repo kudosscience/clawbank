@@ -145,6 +145,29 @@ fn import_malformed_fails_and_leaves_state_untouched() {
 }
 
 #[test]
+fn import_oversized_stdin_fails_without_touching_state() {
+    let home = home();
+    let init_out = run_cli(&home, &["init"], None);
+    assert!(init_out.success);
+    let before = peer_ids(&init_out.stdout);
+    let file = home.path().join("identity.key");
+    let before_bytes = std::fs::read(&file).unwrap();
+    // Far beyond any valid export (~100 bytes): must be rejected by size,
+    // not merely by later base64/protobuf validation.
+    let huge = "A".repeat(128 * 1024);
+    let out = run_cli(&home, &["import"], Some(huge.as_str()));
+    assert!(!out.success);
+    assert!(
+        out.stderr.contains("too large"),
+        "oversized input needs a size error, got: {}",
+        out.stderr
+    );
+    assert_eq!(std::fs::read(&file).unwrap(), before_bytes);
+    let second_init = run_cli(&home, &["init"], None);
+    assert_eq!(peer_ids(&second_init.stdout), before);
+}
+
+#[test]
 fn import_malformed_with_no_identity_creates_nothing() {
     let home = home();
     let out = run_cli(&home, &["import", "!!!not-base64!!!"], None);
