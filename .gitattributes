@@ -1,3 +1,4 @@
 # Binary test fixtures must never undergo line-ending conversion:
-# the golden-vector test pins exact protobuf bytes.
-/crates/clawbank-identity/tests/fixtures/identity.key -text
+# the golden-vector test pins exact protobuf bytes. `binary` (not just
+# `-text`) so diff and merge drivers never touch the bytes either.
+/crates/clawbank-identity/tests/fixtures/identity.key binary
