@@ -1,0 +1,3 @@
+[workspace]
+members = ["crates/clawbank-identity", "crates/clawbank"]
+resolver = "2"
