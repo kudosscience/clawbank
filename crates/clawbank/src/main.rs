@@ -14,6 +14,62 @@ struct Cli {
 enum Commands {
     /// Generate the node identity on first run, then print its PeerId.
     Init,
+    /// Print the node identity as portable text for offline backup.
+    ///
+    /// Store the output somewhere safe: lose both the identity file and
+    /// this export and the PeerId is unrecoverable by design (ADR-0001).
+    Export,
+    /// Restore the node identity from an `export` backup.
+    ///
+    /// The export is validated before anything is written, so malformed
+    /// material fails without touching the existing identity. Lose both
+    /// the identity file and the export and the PeerId is unrecoverable
+    /// by design (ADR-0001).
+    Import {
+        /// Export text from `clawbank export`; reads stdin when omitted.
+        export: Option<String>,
+    },
+}
+
+fn print_peer_id(keypair: &clawbank_identity::Keypair) {
+    let id = clawbank_identity::peer_id(keypair);
+    println!(
+        "Peer ID (base58): {}",
+        clawbank_identity::peer_id_base58(&id)
+    );
+    println!("Peer ID (CID): {}", clawbank_identity::peer_id_cid(&id));
+}
+
+fn run_export() -> std::io::Result<()> {
+    let path = clawbank_identity::identity_file()?;
+    let keypair = clawbank_identity::load(&path).map_err(|e| {
+        if e.kind() == std::io::ErrorKind::NotFound {
+            std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "no identity found, run `clawbank init` first",
+            )
+        } else {
+            e
+        }
+    })?;
+    // Stdout carries only the portable export so `export > backup.txt`
+    // captures exactly what `import` expects.
+    println!("{}", clawbank_identity::export(&keypair));
+    Ok(())
+}
+
+fn run_import(export: Option<String>) -> std::io::Result<()> {
+    let material = match export {
+        Some(text) => text,
+        None => {
+            let mut buf = String::new();
+            std::io::Read::read_to_string(&mut std::io::stdin(), &mut buf)?;
+            buf
+        }
+    };
+    let keypair = clawbank_identity::import(&material, &clawbank_identity::identity_file()?)?;
+    print_peer_id(&keypair);
+    Ok(())
 }
 
 fn run() -> std::io::Result<()> {
@@ -22,14 +78,11 @@ fn run() -> std::io::Result<()> {
         Commands::Init => {
             let keypair =
                 clawbank_identity::load_or_generate(&clawbank_identity::identity_file()?)?;
-            let id = clawbank_identity::peer_id(&keypair);
-            println!(
-                "Peer ID (base58): {}",
-                clawbank_identity::peer_id_base58(&id)
-            );
-            println!("Peer ID (CID): {}", clawbank_identity::peer_id_cid(&id));
+            print_peer_id(&keypair);
             Ok(())
         }
+        Commands::Export => run_export(),
+        Commands::Import { export } => run_import(export),
     }
 }
 
