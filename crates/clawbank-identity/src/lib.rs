@@ -1,7 +1,10 @@
 //! Node identity: Ed25519 keypair to libp2p PeerId (ADR-0001).
 //!
-//! The public key is the identity. Keys are generated locally, persisted
-//! as protobuf, and never leave the machine.
+//! The public key is the identity. Keys are generated locally and persisted
+//! as protobuf. They leave the machine only as an explicit operator backup:
+//! [`export`] encodes the keypair as portable text for offline storage and
+//! [`import`] restores it. Treat an export like the identity file itself —
+//! anyone holding it owns the PeerId.
 
 mod fs_secure;
 mod paths;
@@ -35,11 +38,11 @@ pub fn save(keypair: &Keypair, path: &Path) -> io::Result<()> {
 /// so it round-trips byte-identically through [`import`]. Keep it secret:
 /// anyone holding it owns the PeerId. Lose both the identity file and
 /// this export and the PeerId is unrecoverable by design (ADR-0001).
-pub fn export(keypair: &Keypair) -> String {
+pub fn export(keypair: &Keypair) -> io::Result<String> {
     let bytes = keypair
         .to_protobuf_encoding()
-        .expect("in-memory keypair must protobuf-encode");
-    data_encoding::BASE64.encode(&bytes)
+        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+    Ok(data_encoding::BASE64.encode(&bytes))
 }
 
 /// Restore a keypair from [`export`] text and persist it to `path`.
@@ -47,14 +50,28 @@ pub fn export(keypair: &Keypair) -> String {
 /// The export is fully validated (base64 plus protobuf plus key shape)
 /// before anything is written, so malformed or truncated material fails
 /// with `InvalidData` and leaves any existing identity file untouched.
+/// Publishing takes the same sibling `.lock` as [`load_or_generate`],
+/// so a concurrent first-run `init` cannot interleave a generate between
+/// validation and save: every writer publishes one complete file.
+/// (Concurrent writers with different keys still last-writer-wins; each
+/// call returns the keypair it published.)
 pub fn import(exported: &str, path: &Path) -> io::Result<Keypair> {
     let trimmed = exported.trim();
     let bytes = data_encoding::BASE64
         .decode(trimmed.as_bytes())
         .map_err(invalid_export)?;
     let keypair = Keypair::from_protobuf_encoding(&bytes).map_err(invalid_export)?;
-    save(&keypair, path)?;
-    Ok(keypair)
+    let lock_path = sibling_path(path, "lock");
+    ensure_parent_dir(&lock_path)?;
+    let lock = fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(&lock_path)?;
+    fs2::FileExt::lock_exclusive(&lock)?;
+    let outcome = save(&keypair, path).map(|()| keypair);
+    let _ = fs2::FileExt::unlock(&lock);
+    outcome
 }
 
 fn invalid_export(e: impl std::fmt::Display) -> io::Error {
@@ -315,7 +332,7 @@ mod tests {
         save(&original, &file).unwrap();
         let before = std::fs::read(&file).unwrap();
 
-        let exported = export(&load(&file).unwrap());
+        let exported = export(&load(&file).unwrap()).unwrap();
         std::fs::remove_file(&file).unwrap();
         let restored = import(&exported, &file).unwrap();
 
@@ -332,15 +349,13 @@ mod tests {
     #[test]
     fn export_is_single_line_base64_of_protobuf_bytes() {
         let keypair = generate();
-        let text = export(&keypair).trim().to_string();
+        let text = export(&keypair).unwrap().trim().to_string();
         assert!(!text.is_empty());
         assert!(!text.contains(char::is_whitespace));
         let decoded = data_encoding::BASE64.decode(text.as_bytes()).unwrap();
         assert_eq!(
             decoded,
-            keypair
-                .to_protobuf_encoding()
-                .expect("keypair must encode")
+            keypair.to_protobuf_encoding().expect("keypair must encode")
         );
     }
 
@@ -350,7 +365,7 @@ mod tests {
             "",
             "!!!not-base64!!!",
             "aGVsbG8td29ybGQ=",
-            &export(&generate())[..10],
+            &export(&generate()).unwrap()[..10],
         ] {
             // Existing identity present: failed import keeps it intact.
             let dir = tempfile::tempdir().unwrap();
@@ -381,10 +396,31 @@ mod tests {
         use std::os::unix::fs::PermissionsExt;
         let dir = tempfile::tempdir().unwrap();
         let file = dir.path().join("identity.key");
-        let exported = export(&generate());
+        let exported = export(&generate()).unwrap();
         let restored = import(&exported, &file).unwrap();
         assert_eq!(peer_id(&load(&file).unwrap()), peer_id(&restored));
         let mode = std::fs::metadata(&file).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode, 0o600, "restored identity must be owner-only");
+    }
+
+    #[test]
+    fn concurrent_imports_converge_on_the_restored_identity() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("identity.key");
+        let exported = export(&generate()).unwrap();
+        let ids: Vec<String> = std::thread::scope(|s| {
+            (0..8)
+                .map(|_| s.spawn(|| peer_id_base58(&peer_id(&import(&exported, &file).unwrap()))))
+                .collect::<Vec<_>>()
+                .into_iter()
+                .map(|h| h.join().unwrap())
+                .collect()
+        });
+        assert!(ids.iter().all(|id| *id == ids[0]));
+        assert_eq!(
+            peer_id_base58(&peer_id(&load(&file).unwrap())),
+            ids[0],
+            "every importer must report the identity that is actually stored"
+        );
     }
 }

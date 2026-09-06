@@ -54,7 +54,7 @@ fn run_export() -> std::io::Result<()> {
     })?;
     // Stdout carries only the portable export so `export > backup.txt`
     // captures exactly what `import` expects.
-    println!("{}", clawbank_identity::export(&keypair));
+    println!("{}", clawbank_identity::export(&keypair)?);
     Ok(())
 }
 

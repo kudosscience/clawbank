@@ -14,11 +14,7 @@ struct CliOutput {
     stderr: String,
 }
 
-fn run_cli(
-    home: &tempfile::TempDir,
-    args: &[&str],
-    stdin: Option<&str>,
-) -> CliOutput {
+fn run_cli(home: &tempfile::TempDir, args: &[&str], stdin: Option<&str>) -> CliOutput {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_clawbank"));
     cmd.env("CLAWBANK_HOME", home.path()).args(args);
     if stdin.is_some() {
@@ -66,7 +62,10 @@ fn export_after_init_prints_single_line_portable_material() {
     assert!(out.success, "export must succeed: {}", out.stdout);
     let line = out.stdout.trim().to_string();
     assert!(!line.is_empty());
-    assert!(!line.contains(char::is_whitespace), "export must be one line");
+    assert!(
+        !line.contains(char::is_whitespace),
+        "export must be one line"
+    );
 }
 
 #[test]
@@ -81,7 +80,11 @@ fn delete_then_import_restores_identical_peer_id() {
 
     std::fs::remove_file(&file).unwrap();
     let import_out = run_cli(&home, &["import", export_text.as_str()], None);
-    assert!(import_out.success, "import must succeed: {}", import_out.stdout);
+    assert!(
+        import_out.success,
+        "import must succeed: {}",
+        import_out.stdout
+    );
     assert_eq!(peer_ids(&import_out.stdout), before);
     assert_eq!(std::fs::read(&file).unwrap(), before_bytes);
 }
@@ -111,7 +114,11 @@ fn import_via_stdin_restores_identical_peer_id() {
     let export_out = run_cli(&home, &["export"], None);
     std::fs::remove_file(home.path().join("identity.key")).unwrap();
     let import_out = run_cli(&home, &["import"], Some(export_out.stdout.trim()));
-    assert!(import_out.success, "stdin import must succeed: {}", import_out.stdout);
+    assert!(
+        import_out.success,
+        "stdin import must succeed: {}",
+        import_out.stdout
+    );
     assert_eq!(peer_ids(&import_out.stdout), before);
 }
 
