@@ -48,6 +48,33 @@ pub(crate) fn ensure_parent_dir(path: &Path) -> io::Result<()> {
     Ok(())
 }
 
+/// True when `path` is a regular file whose Unix mode is not owner-only.
+/// Symlinks and non-regular files are left alone: republishing through
+/// them would replace the link itself.
+#[cfg(unix)]
+pub(crate) fn needs_perm_repair(path: &Path) -> bool {
+    use std::os::unix::fs::PermissionsExt;
+    match fs::symlink_metadata(path) {
+        Ok(meta) if meta.file_type().is_file() => meta.permissions().mode() & 0o777 != 0o600,
+        _ => false,
+    }
+}
+
+/// No permission bits to repair off Unix.
+#[cfg(not(unix))]
+pub(crate) fn needs_perm_repair(_path: &Path) -> bool {
+    false
+}
+
+/// fsync the containing directory so a just-published rename is durable,
+/// not merely ordered. Skipped for parentless paths (nothing to sync).
+#[cfg(unix)]
+fn sync_parent(path: &Path) -> io::Result<()> {
+    match path.parent().filter(|p| !p.as_os_str().is_empty()) {
+        Some(dir) => fs::File::open(dir)?.sync_all(),
+        None => Ok(()),
+    }
+}
 /// Create `dir`, `0700`-ing only the chain members that were missing.
 #[cfg(unix)]
 fn create_dir_only_missing(dir: &Path) -> io::Result<()> {
@@ -77,8 +104,9 @@ fn create_dir_only_missing(dir: &Path) -> io::Result<()> {
 ///
 /// The write is atomic: bytes land in an exclusively-created sibling temp
 /// file and are renamed over the target, so readers never see a truncated
-/// identity and a crash can only leave a complete file or none. Stale
-/// sibling temp files after a crash are safe to delete.
+/// identity and a crash can only leave a complete file or none. The parent
+/// directory is synced after the rename so the publish survives power loss.
+/// Stale sibling temp files after a crash are safe to delete.
 pub(crate) fn write_secure(path: &Path, bytes: &[u8]) -> io::Result<()> {
     #[cfg(unix)]
     {
@@ -109,7 +137,8 @@ pub(crate) fn write_secure(path: &Path, bytes: &[u8]) -> io::Result<()> {
                         io::Write::write_all(&mut file, bytes)?;
                         file.sync_all()?;
                         drop(file);
-                        fs::rename(&tmp, path)
+                        fs::rename(&tmp, path)?;
+                        sync_parent(path)
                     })();
                     if outcome.is_err() {
                         let _ = fs::remove_file(&tmp);
@@ -124,11 +153,55 @@ pub(crate) fn write_secure(path: &Path, bytes: &[u8]) -> io::Result<()> {
         // Windows has no Unix permission bits; the file inherits the
         // user's profile ACLs. Documented limitation, not silent: callers
         // on shared machines should prefer an encrypted volume.
-        // The write is also neither atomic nor symlink-safe here; the
-        // Unix path above is the hardened one.
+        //
+        // Same temp+publish shape as Unix, but std has no atomic replace
+        // on Windows: when the destination exists we remove-then-rename.
+        // A crash can then leave the file missing (regenerated, with a new
+        // PeerId, on next init) but never truncated (which would hard-error
+        // every later init instead of recovering).
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
         }
-        fs::write(path, bytes)
+        let pid = std::process::id();
+        let mut attempt = 0u32;
+        loop {
+            let tmp = sibling_path(path, &format!("tmp.{pid}.{attempt}"));
+            let mut opts = fs::OpenOptions::new();
+            opts.write(true).create_new(true);
+            match opts.open(&tmp) {
+                Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {
+                    attempt = attempt.saturating_add(1);
+                    if attempt > 100 {
+                        return Err(io::Error::new(
+                            io::ErrorKind::AlreadyExists,
+                            "identity temp files exhausted",
+                        ));
+                    }
+                }
+                Err(e) => return Err(e),
+                Ok(mut file) => {
+                    let outcome = (|| -> io::Result<()> {
+                        io::Write::write_all(&mut file, bytes)?;
+                        file.sync_all()?;
+                        drop(file);
+                        match fs::rename(&tmp, path) {
+                            Ok(()) => Ok(()),
+                            // Replace only when the rename lost a
+                            // create-vs-replace race: any other failure
+                            // must propagate with the good file intact.
+                            Err(e) if e.kind() == io::ErrorKind::AlreadyExists && path.exists() => {
+                                fs::remove_file(path)?;
+                                fs::rename(&tmp, path)
+                            }
+                            Err(e) => Err(e),
+                        }
+                    })();
+                    if outcome.is_err() {
+                        let _ = fs::remove_file(&tmp);
+                    }
+                    return outcome;
+                }
+            }
+        }
     }
 }

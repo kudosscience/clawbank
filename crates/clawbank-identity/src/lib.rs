@@ -10,7 +10,7 @@ mod peer;
 pub use paths::{data_dir, identity_file};
 pub use peer::{peer_id, peer_id_base58, peer_id_cid, peer_id_from_cid};
 
-use fs_secure::{ensure_parent_dir, sibling_path, write_secure};
+use fs_secure::{ensure_parent_dir, needs_perm_repair, sibling_path, write_secure};
 use libp2p_identity::Keypair;
 use std::fs;
 use std::io;
@@ -45,9 +45,16 @@ pub fn load(path: &Path) -> io::Result<Keypair> {
 /// file, so concurrent `init` processes serialize: exactly one generates,
 /// and every caller returns the identity that is actually stored.
 /// (`flock` releases on process death, so a crashed rival never wedges us.)
+/// An existing identity with loosened permissions is republished
+/// owner-only before returning, so no successful `init` leaves a
+/// world-readable private key behind.
 pub fn load_or_generate(path: &Path) -> io::Result<Keypair> {
-    if let ok @ Ok(_) = load(path) {
-        return ok;
+    if let Ok(keypair) = load(path) {
+        if !needs_perm_repair(path) {
+            return Ok(keypair);
+        }
+        // Permissions drifted (chmod, umask, restore): fall through to
+        // the locked section and repair.
     }
     // Fast path missed: take the lock, then re-check — the winner may have
     // published while we waited.
@@ -60,7 +67,12 @@ pub fn load_or_generate(path: &Path) -> io::Result<Keypair> {
         .open(&lock_path)?;
     fs2::FileExt::lock_exclusive(&lock)?;
     let outcome = match load(path) {
-        Ok(keypair) => Ok(keypair),
+        Ok(keypair) => {
+            if needs_perm_repair(path) {
+                save(&keypair, path)?;
+            }
+            Ok(keypair)
+        }
         Err(e) if e.kind() == io::ErrorKind::NotFound => {
             let keypair = generate();
             save(&keypair, path)?;
@@ -138,6 +150,23 @@ mod tests {
         save(&generate(), &file).unwrap();
         let dir_mode = std::fs::metadata(dir.path()).unwrap().permissions().mode() & 0o777;
         assert_eq!(dir_mode, 0o755, "pre-existing dir must keep its mode");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn load_or_generate_repairs_a_permissive_identity_file() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("identity.key");
+        let original = generate();
+        save(&original, &file).unwrap();
+        // Loosened behind our back: the next init must tighten it again
+        // while returning the identical identity.
+        std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o644)).unwrap();
+        let reloaded = load_or_generate(&file).unwrap();
+        assert_eq!(peer_id(&original), peer_id(&reloaded));
+        let file_mode = std::fs::metadata(&file).unwrap().permissions().mode() & 0o777;
+        assert_eq!(file_mode, 0o600, "init must repair loosened permissions");
     }
 
     #[test]
