@@ -11,14 +11,19 @@
 > (Docs 02, assessments/governance/appendices) — which own merging this
 > content into repo-root `SAFETY.md` without duplicating or diverging
 > from it. Normative level definitions live in
-> [ADR-0004](../adr/0004-safety-risk-levels.md); this file imports them,
-> it does not restate them.
+> [ADR-0004](../adr/0004-safety-risk-levels.md); the table in §1 is a
+> non-normative summary of it — this file creates no second normative
+> copy.
 >
-> **Status legend used throughout.** Every safeguard claim carries
+> **Status legend for §5.** Every safeguard claim in §5 carries
 > exactly one status: **[Implemented]** (shipped code, linked below),
 > **[Planned — #N]** (open ticket, explicitly not done), or
 > **[Procedural]** (human/CI process, linked to the procedure). Nothing
 > in this file implies an unimplemented safeguard is done.
+> Design-scope statements in §§1–4 describe what FAL-2 *requires* per
+> ADR-0004, not what is implemented today: implementation status lives
+> in §5, and the §§2–3 argument is conditional on the §5b safeguards
+> landing (see §6 for what is enforced today).
 
 ## 1. The FAL-1..4 scale (imported from ADR-0004)
 
@@ -30,6 +35,10 @@
 | FAL-4 | Autonomous macro-economy | Recursive credit→compute earn loops persisting without human re-auth, systemic external-market impact | Undefined today; committed to define before reaching FAL-3 |
 
 Source of truth: [ADR-0004](../adr/0004-safety-risk-levels.md).
+The "Required safeguards" column above states what each level *requires*,
+not what is implemented today: of the FAL-2 bundle, only key storage
+(S3), the FAL pin + gate (S1–S2), and `cargo audit`/`deny` (S5) are
+**[Implemented]** — the rest is **[Planned]** (see §5).
 Mechanical declaration: `clawbank_safety::FAL_LEVEL`
 ([`crates/clawbank-safety/src/lib.rs`](../../crates/clawbank-safety/src/lib.rs),
 currently `2`), pinned by the gate test
@@ -38,7 +47,8 @@ Operator procedure: [`fal-level.md`](fal-level.md).
 
 ## 2. Placement: the MVP is FAL-2
 
-The MVP is a virtual credit network and nothing more:
+The MVP's design scope is a virtual credit network and nothing more
+(scope, not implementation status — see §5):
 
 - **Fixed supply.** One genesis mint creates the entire supply
   (`SUPPLY = 1_000_000_000_000_000` base units = 1B credits); no minting
@@ -48,7 +58,8 @@ The MVP is a virtual credit network and nothing more:
   and allocation rule are already locked by ADR-0011.
 - **Virtual-only.** Credits are ledger entries between pseudonymous
   node keypairs. There is no redemption path, no fiat or crypto bridge,
-  no convertibility promise — nothing leaves the network.
+  no convertibility promise — nothing leaves the network. (Absence of
+  bridge/escrow/lending code enforced by [S2](#5a-implemented-today).)
 - **No leverage.** No escrow, no lending/borrowing, no margin/yield,
   no marketplace, no autonomous-spending policy. Any of these in code
   trips the pause-rule gate while `FAL_LEVEL < 3`
@@ -58,7 +69,10 @@ The MVP is a virtual credit network and nothing more:
 ## 3. The contained-blast-radius argument
 
 Fixed supply **plus** virtual-only **plus** no leverage bounds the worst
-case to **recoverable in-network harm — never external financial loss**:
+case to **recoverable in-network harm — never external financial loss**.
+The bound below holds of the specified FAL-2 *design*; it becomes an
+enforced guarantee only as the §5b safeguards land — today the enforced
+subset is §5a (see §6):
 
 1. **No external financial loss is possible.** With no bridge and no
    redemption, there is no channel by which a ledger event becomes a
@@ -72,7 +86,8 @@ case to **recoverable in-network harm — never external financial loss**:
    funds (see `Checkpoint` / `Social fork` in
    [`CONTEXT.md`](../../CONTEXT.md), recovery runbook
    **[Planned — #55](https://github.com/kudosscience/clawbank/issues/55)**,
-   fork-choice/evidence design in [ADR-0009](../adr/0009-ledger-replication.md)).
+   fork-choice/evidence design in [ADR-0009](../adr/0009-ledger-replication.md)
+   whose implementation is **[Planned — #51](https://github.com/kudosscience/clawbank/issues/51)**).
 3. **Reputation collapse is recoverable.** Reputation is display and
    routing guidance only ([`CONTEXT.md`](../../CONTEXT.md)); a gaming or
    Sybil attack degrades signal quality but cannot move real value.
@@ -82,7 +97,12 @@ case to **recoverable in-network harm — never external financial loss**:
    adversarial driver **[Planned — #42](https://github.com/kudosscience/clawbank/issues/42)**).
 4. **Denial of service ends at the social fork.** Dust floods, gossip
    spam, and partition games can halt or split the network; relay caps,
-   scoring, and rate limits bound the damage, and a split community
+   scoring, and rate limits (**Planned**:
+   [#28](https://github.com/kudosscience/clawbank/issues/28) /
+   [#27](https://github.com/kudosscience/clawbank/issues/27) /
+   [#42](https://github.com/kudosscience/clawbank/issues/42), row P6 in
+   §5b) are designed
+   to bound the damage, and a split community
    re-joins under a new checkpoint. Availability is at stake, solvency
    is not.
 
@@ -169,10 +189,11 @@ results that do not yet exist.
   as an issue with the `safety` label, as a PR, or as a pause request —
   without fear of retaliation, exclusion, or reputational penalty. Good-
   faith false alarms are welcomed: the cost of a needless pause is
-  accepted as the price of never missing a real one. Emergency pause
-  (`git tag -s pause/YYYY-MM-DD`) needs no prior permission; the
-  7-day full report follows per
-  [ADR-0006](../adr/0006-safety-evaluation-framework.md).
+   accepted as the price of never missing a real one. Emergency pause
+   (`git tag -s pause/YYYY-MM-DD`) needs no prior permission; per
+   ADR-0006 it is followed by a `safety`-labelled issue plus the 7-day
+   full report
+   ([ADR-0006](../adr/0006-safety-evaluation-framework.md)).
 - **Threshold discipline.** The FAL threshold is re-evaluated on every
   safeguard upgrade; any `escrow`/`lending`/`bridge`/autonomous-spending
   proposal is gated by the pause rule until the FAL-3 safeguards,
