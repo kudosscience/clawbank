@@ -24,12 +24,14 @@ fn run_cli(home: &tempfile::TempDir, args: &[&str], stdin: Option<&str>) -> CliO
     let mut child = cmd.spawn().unwrap();
     if let Some(input) = stdin {
         use std::io::Write;
-        child
-            .stdin
-            .as_mut()
-            .unwrap()
-            .write_all(input.as_bytes())
-            .unwrap();
+        // The child may reject the input and exit before we finish
+        // writing (e.g. the oversized-import test): a broken pipe then
+        // means rejection already happened, not a harness failure.
+        match child.stdin.as_mut().unwrap().write_all(input.as_bytes()) {
+            Ok(()) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::BrokenPipe => {}
+            Err(e) => panic!("stdin write failed: {e}"),
+        }
     }
     let out = child.wait_with_output().unwrap();
     CliOutput {
