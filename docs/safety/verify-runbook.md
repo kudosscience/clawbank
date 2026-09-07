@@ -38,7 +38,7 @@ git fetch --tags
 git verify-tag safety/v0.2.0
 # GPG-signed tag: prints Good signature ... B32D6EFC6320085E
 # SSH-signed tag (gpg.format=ssh): prints
-#   Good "git" signature for henryawarduk@gmail.com with ED25519 key SHA256:av7CIaWccVRNZkIRVrYNEHMwNZ0GbzRvweEhHZSSMHo
+#   Good "git" signature for 45144290+kudosscience@users.noreply.github.com with ED25519 key SHA256:av7CIaWccVRNZkIRVrYNEHMwNZ0GbzRvweEhHZSSMHo
 git show safety/v0.2.0 --no-patch --format='%T %aN'
 # %T pins the tagged tree; cross-check it against the Risk Report's
 # evaluated commit and the Changelog redline in step 2.
