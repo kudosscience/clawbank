@@ -184,7 +184,7 @@ results that do not yet exist.
   decision, per [ADR-0004](../adr/0004-safety-risk-levels.md) and
   [ADR-0005](../adr/0005-safety-doc-pattern.md). A rise to FAL-3
   additionally requires an external reviewer, recorded in `SAFETY.md`
-  (Appendix C + Changelog) and a per-release Risk Report.
+   (Appendix E + Changelog) and a per-release Risk Report.
 - **Non-retaliation commitment.** Anyone may raise a safety concern —
   as an issue with the `safety` label, as a PR, or as a pause request —
   without fear of retaliation, exclusion, or reputational penalty. Good-

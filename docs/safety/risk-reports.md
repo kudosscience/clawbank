@@ -32,7 +32,7 @@ the procedure; the fixed shape lives in
   merges the note as a standard change, per the governance in
   [`mvp-safety-case.md`](mvp-safety-case.md) §7.
 - **FAL threshold changes**: maintainer **plus** an external reviewer,
-  recorded in `SAFETY.md` (Appendix C + Changelog) and the per-release
+  recorded in `SAFETY.md` (Appendix E + Changelog) and the per-release
   note. No single party raises the level alone.
 - **FAL-3-gated features** (escrow, lending/borrowing, margin/yield,
   fiat/crypto bridges, compute marketplace, policy-based autonomous
