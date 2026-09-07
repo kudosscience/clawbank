@@ -2,10 +2,12 @@
 
 > Copy this file to `docs/safety/risk-report-YYYY-MM-DD.md` and fill every
 > section. The release gate (`scripts/ci/release-gate.sh`, code releases)
-> excludes `*template*` files and validates each filled note: all six
-> `##` sections below must be present, `coverage_date` / `published` /
-> commit SHA must be named, the Redactions section must contain a
-> `[REDACTED]` marker or an explicit `None` (never silently omitted), and
+> excludes `*template*` files and validates each filled note: all seven
+> `##` sections below must be present, `coverage_date` / `published`
+> must be real calendar dates, the commit SHA must be an isolated full
+> SHA, every Known gaps item must name a tracking ticket, the Redactions
+> section must contain a `[REDACTED — category — N tokens withheld]`
+> marker or an explicit `None` (never silently omitted), and
 > peer-identifying or secret material must be absent. Procedure, cadence,
 > and sign-off live in [`risk-reports.md`](risk-reports.md).
 
@@ -79,9 +81,10 @@ omitted.
 
 ## Attestation
 
-The release attestation (Sigstore/Rekor bundle, see
-`.github/workflows/release.yml`) carries only the artifact digest plus
-the summary verdict from this note — pass/fail, FAL level, commit. Raw
-exploit detail and peer-identifying data are forbidden in the note by
-rule (see `risk-reports.md`) and never enter attested artifacts: digests
-plus summaries only.
+The release workflow (`.github/workflows/release.yml`) creates a
+Sigstore/Rekor-backed provenance attestation for each released file,
+identifying each subject by its artifact digest. The attestation does
+not embed this note's summary verdict — pass/fail, FAL level, commit
+stay in the note, which ships inside the attested bundle. Raw exploit
+detail and peer-identifying data are forbidden in the note by rule (see
+`risk-reports.md`) and therefore never enter attested artifacts.

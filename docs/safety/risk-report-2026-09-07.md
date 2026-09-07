@@ -15,7 +15,7 @@
 
 ## Evaluations run
 
-All suites below were executed locally on 2026-09-07 against the
+All executed suites below were run locally on 2026-09-07 against the
 evaluated commit and passed:
 
 - `cargo test --all`: green — 13/13 FAL pause-rule gate tests
@@ -68,17 +68,46 @@ subset is enforced today (FAL pin + pause-rule gate, identity
 lifecycle, audit/deny gates). Everything else is explicitly planned,
 tracked, and not claimed:
 
-- P1–P2 transfers/gossip validation, P3 fork-choice/evidence,
-  P4 genesis artifact and recovery runbook, P5 reputation scorer,
-  P6 rate limits and relay caps, P7 transport authenticity.
-- P8 full FAL-2 proof harness: integrity suite, adversarial driver, and
-  cadence/evidence/pause drill are not yet built — this note rests on
-  the blast-radius bound plus the implemented gates, not on
-  adversarial results that do not yet exist.
-- P9 (this track): template and procedure land here; the filled note is
-  the present file.
+- P1–P2 transfers/gossip validation
+  ([#44](https://github.com/kudosscience/clawbank/issues/44),
+  [#45](https://github.com/kudosscience/clawbank/issues/45),
+  [#30](https://github.com/kudosscience/clawbank/issues/30),
+  [#49](https://github.com/kudosscience/clawbank/issues/49),
+  [#50](https://github.com/kudosscience/clawbank/issues/50),
+  [#28](https://github.com/kudosscience/clawbank/issues/28)),
+  P3 fork-choice/evidence
+  ([#51](https://github.com/kudosscience/clawbank/issues/51)),
+  P4 genesis artifact and recovery runbook
+  ([#54](https://github.com/kudosscience/clawbank/issues/54),
+  [#55](https://github.com/kudosscience/clawbank/issues/55)),
+  P5 reputation scorer
+  ([#52](https://github.com/kudosscience/clawbank/issues/52),
+  [#53](https://github.com/kudosscience/clawbank/issues/53)),
+  P6 rate limits and relay caps
+  ([#28](https://github.com/kudosscience/clawbank/issues/28),
+  [#27](https://github.com/kudosscience/clawbank/issues/27),
+  [#42](https://github.com/kudosscience/clawbank/issues/42)),
+  P7 transport authenticity
+  ([#25](https://github.com/kudosscience/clawbank/issues/25),
+  [#24](https://github.com/kudosscience/clawbank/issues/24),
+  [#23](https://github.com/kudosscience/clawbank/issues/23)).
+- P8 full FAL-2 proof harness: integrity suite
+  ([#41](https://github.com/kudosscience/clawbank/issues/41)),
+  adversarial driver
+  ([#42](https://github.com/kudosscience/clawbank/issues/42)), and
+  cadence/evidence/pause drill
+  ([#43](https://github.com/kudosscience/clawbank/issues/43)) are not yet
+  built — this note rests on the blast-radius bound plus the
+  implemented gates, not on adversarial results that do not yet exist.
+- P9 (this track,
+  [#37](https://github.com/kudosscience/clawbank/issues/37)): template and
+  procedure land here; the filled note is the present file.
 - P10 `SAFETY.md` skeleton, signing, and appendices are pending their
-  own track and are not claimed here.
+  own track
+  ([#38](https://github.com/kudosscience/clawbank/issues/38),
+  [#39](https://github.com/kudosscience/clawbank/issues/39),
+  [#40](https://github.com/kudosscience/clawbank/issues/40)) and are not
+  claimed here.
 
 ## Redactions
 
@@ -86,8 +115,11 @@ None — no material was withheld from this note.
 
 ## Attestation
 
-On release, the Sigstore/Rekor bundle carries only the artifact digest
-plus the summary verdict of this note (pass, FAL-2, evaluated commit).
-This note contains no raw exploit detail and no peer-identifying data,
-so there is nothing to strip before attestation: digests plus summaries
-only.
+On release, the workflow's `actions/attest-build-provenance` step creates
+a Sigstore/Rekor-backed provenance attestation for each file matched by
+`dist/*`, identifying each subject by its artifact digest. The
+attestation does not embed this note's summary verdict — consult this
+note separately for the pass/fail outcome, the FAL-2 verdict, and the
+evaluated commit. This note contains no raw exploit detail and no
+peer-identifying data, so nothing in it needs stripping before it ships
+inside the attested docs bundle.

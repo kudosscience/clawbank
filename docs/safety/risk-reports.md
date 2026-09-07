@@ -60,16 +60,25 @@ the procedure; the fixed shape lives in
   in the note by rule. That material stays internal-only; the public
   note carries summaries and digests. The gate rejects notes containing
   network address literals, multiaddr locators, or key blocks.
-- **Attestation:** the release attestation (Sigstore/Rekor bundle via
-  `.github/workflows/release.yml`) carries only the artifact digest plus
-  the summary verdict — pass/fail, FAL level, commit. Never raw exploit
-  detail or peer-identifying data.
+- **Attestation:** the release workflow (`.github/workflows/release.yml`)
+  creates a Sigstore/Rekor-backed provenance attestation for each
+  released file, identifying each subject by its artifact digest. The
+  attestation does not embed the note's summary verdict — pass/fail, FAL
+  level, commit stay in the note, which ships inside the attested
+  bundle. Raw exploit detail and peer-identifying data are forbidden in
+  the note by rule and therefore never enter attested artifacts.
 
 ## How the gate ties in
 
 `scripts/ci/release-gate.sh` (code releases, run by the `gate` job in
 `.github/workflows/release.yml`) fails a release loudly when no filled
-note exists, when any required section is missing, when dates or the
-commit pin are absent, when the Redactions section is empty or silent,
-or when forbidden material is detected. Deleting the filled note makes
-the gate fail; the template alone never satisfies it.
+note exists, when any required section (including Attestation) is
+missing, when the dates are not real `YYYY-MM-DD` calendar dates, when
+the commit pin is not an isolated full SHA, when Known gaps items lack
+tracking tickets, when the Redactions section is empty or silent, or
+when forbidden material (network address literals including IPv6,
+multiaddr locators, key blocks) is detected. Deleting the filled note
+makes the gate fail; the template alone never satisfies it. Freshness is
+a maintainer duty on top of the structural checks: cut the release tag
+at the evaluated commit (or re-run the suite and write a fresh note) —
+reusing a stale note passes the gate's shape checks but fails review.
