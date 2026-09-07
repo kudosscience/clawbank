@@ -213,9 +213,17 @@ any failure is a pause-rule event (see §8), not a judgement call.
   mint per [ADR-0011](docs/adr/0011-genesis.md), no post-genesis mint
   path), virtual-only (no redemption path, no bridge), no leverage
   (no escrow, lending, margin, marketplace, or autonomous-spending
-  policy). Method: C2 green plus `git log --oneline` review of
-  FAL-relevant changes since the last Risk Report; any doubtful file
-  is treated as a C2 hit until the gate confirms otherwise.
+  policy). Method: C2 green, plus a tree review the gate cannot do
+  for you — the gate matches FAL-3 trigger *terms*, so a
+  neutrally-named mint, redemption, or leverage path would pass it
+  unnoticed. Search the current tree (not just the log) for
+  supply-creating paths outside the genesis track, for
+  redemption/convertibility paths, and for leverage-adjacent paths,
+  then review `git log --oneline` for FAL-relevant changes since the
+  last Risk Report. Any doubtful file is treated as a C2 hit until
+  the gate confirms otherwise — and a capability the gate cannot see
+  is a gate-coverage gap: file a `safety`-labelled issue naming the
+  term to add.
 
 - C5 — Record the verdict. Write it into the per-release Risk Report
   ([template](docs/safety/risk-report-template.md), procedure
@@ -262,10 +270,12 @@ prose — only landed code or procedure changes a row, via its ticket.
   ([#38](https://github.com/kudosscience/clawbank/issues/38),
   [#39](https://github.com/kudosscience/clawbank/issues/39),
   [#40](https://github.com/kudosscience/clawbank/issues/40)).
-  Method: open each linked ticket; if the ticket is still open, the
-  row stays **[Planned]** and the Risk Report lists it under Known
-  gaps. Closing a row requires the ticket's code to land, not an edit
-  here.
+  Method: open each linked ticket; if its required deliverable has
+  not landed, the row stays **[Planned]** and the Risk Report lists
+  it under Known gaps. Completion is row-specific: implementation
+  safeguards require the ticket's code to land; documentation tracks
+  such as P9 and P10 require the documented procedure or artifact to
+  land. No row closes by an edit here alone.
 
 - G3 — No other safeguard is claimed. Anything not in §5a of the
   safety case is still to build by construction. If a release note or

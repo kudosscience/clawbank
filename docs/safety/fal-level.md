@@ -61,6 +61,6 @@ value and this procedure still applies. A rise to FAL-3 requires, in order:
 2. **Evaluations** — the ADR-0006 FAL-3 harness passes, showing no meaningful
    catastrophic misuse under adversarial testing.
 3. **Reviewer** — a maintainer plus an external reviewer sign off, recorded in
-   `SAFETY.md` (Appendix C + Changelog) and a per-release Risk Report.
+    `SAFETY.md` (Appendix E + Changelog) and a per-release Risk Report.
 
 Only then may `FAL_LEVEL` be raised and the gate's allowlist updated.
