@@ -20,7 +20,7 @@
 //! symlinked directories (never traversed: no cycles, no escape from the
 //! tree), and the generated `Cargo.lock` (which names the curve25519
 //! `fiat-crypto` primitive — not a bridge). Prose that must discuss gated capabilities is
-//! allowlisted: `docs/adr/` decision records and `docs/safety/` safety docs,
+//! allowlisted: `SAFETY.md` (repo-root commitment), `docs/adr/` decision records and `docs/safety/` safety docs,
 //! plus the two gate-owned files that define the level and this term list. A
 //! proposal doc never satisfies the pause rule; the evidence procedure in
 //! `docs/safety/fal-level.md` still applies before the level may rise.
@@ -76,7 +76,11 @@ const GATED_TERMS: &[&str] = &[
 const ALLOWLIST_PREFIXES: &[&str] = &["docs/adr/", "docs/safety/"];
 
 /// Gate-owned files allowed to *name* gated terms (exact repo-root paths).
+/// `SAFETY.md` is the versioned public commitment (ADR-0005 Docs 01): it
+/// must state the FAL-3 threshold list to be legible, so its prose is
+/// allowlisted like `docs/adr/` and `docs/safety/`.
 const ALLOWLIST_FILES: &[&str] = &[
+    "SAFETY.md",
     "crates/clawbank-safety/src/lib.rs",
     "crates/clawbank-safety/tests/fal_gate.rs",
 ];
@@ -129,6 +133,30 @@ fn match_terms(normalized: &str) -> Vec<String> {
                 || (term.contains(' ') && squashed.contains(&term.replace(' ', "")))
         })
         .map(|term| term.to_string())
+        .collect()
+}
+
+/// FAL-3 threshold markers `SAFETY.md` must state for the commitment to stay
+/// legible. Allowlisting the file (so it may discuss gated capabilities)
+/// must not let a gutted version-header-only file pass both gates, so this
+/// list is asserted separately in `safety_md_states_fal3_thresholds`.
+const SAFETY_THRESHOLD_MARKERS: &[&str] = &[
+    "escrow",
+    "lending",
+    "borrowing",
+    "margin",
+    "yield",
+    "bridge",
+    "marketplace",
+    "autonomous spend",
+];
+
+fn missing_threshold_markers(text: &str) -> Vec<String> {
+    let normalized = normalize(text);
+    SAFETY_THRESHOLD_MARKERS
+        .iter()
+        .filter(|marker| !normalized.contains(**marker))
+        .map(|marker| marker.to_string())
         .collect()
 }
 
@@ -230,6 +258,20 @@ fn no_fal3_capabilities_below_fal3() {
             ))
             .collect::<Vec<_>>()
             .join("\n"),
+    );
+}
+
+#[test]
+fn safety_md_states_fal3_thresholds() {
+    let root = workspace_root();
+    let text = std::fs::read_to_string(root.join("SAFETY.md"))
+        .expect("SAFETY.md must exist (ADR-0005 Docs 01)");
+    let missing = missing_threshold_markers(&text);
+    assert!(
+        missing.is_empty(),
+        "SAFETY.md must state the FAL-3 threshold list for the commitment to \
+         stay legible; missing marker(s): {} — see SAFETY.md §2/§3.3 and ADR-0004",
+        missing.join(", "),
     );
 }
 
@@ -345,8 +387,24 @@ mod scanner_tests {
                 "escrow, lending, bridge\n",
             ),
             ("docs/safety/fal-level.md", "fiat bridge, marketplace\n"),
+            ("SAFETY.md", "escrow, lending, fiat bridge, marketplace\n"),
         ]);
         assert!(scan(&dir).is_empty());
+    }
+
+    #[test]
+    fn threshold_markers_accept_a_full_list() {
+        let text = "escrow lending borrowing margin yield \
+            fiat crypto bridges compute marketplace \
+            policy-based autonomous spending";
+        assert!(missing_threshold_markers(text).is_empty());
+    }
+
+    #[test]
+    fn threshold_markers_flag_a_gutted_file() {
+        let missing = missing_threshold_markers("# Safety\n\nVersion: 0.1.0\n");
+        assert_eq!(missing.len(), SAFETY_THRESHOLD_MARKERS.len());
+        assert!(missing.contains(&"escrow".to_string()));
     }
 
     #[test]

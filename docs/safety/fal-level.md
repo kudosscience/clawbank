@@ -29,9 +29,14 @@ all match), so identifiers cannot dodge the gate by picking separators.
 
 Only the gate-owned files (`crates/clawbank-safety/src/lib.rs` and
 `crates/clawbank-safety/tests/fal_gate.rs`) may name these terms in code:
-they own the constant and the gate's term list. `docs/adr/` and
-`docs/safety/` may discuss gated capabilities freely — prose proposes, code
-implements, and only unallowlisted matches trip the gate.
+they own the constant and the gate's term list. `SAFETY.md` (repo-root
+commitment), `docs/adr/`, and `docs/safety/` may discuss gated capabilities
+freely — prose proposes, code implements, and only unallowlisted matches
+trip the gate.
+
+A separate assertion (`safety_md_states_fal3_thresholds` in the same test)
+requires `SAFETY.md` to keep stating the FAL-3 threshold list, so
+allowlisting the file cannot gut the commitment to a version header.
 
 The gate runs in the existing CI required checks: the `rust-test` job invokes
 `scripts/ci/rust-check.sh test` (`cargo test --all`), so every PR runs it and
