@@ -2,11 +2,17 @@
 # - `v*` tags: full release. Gates: SAFETY.md Version header must equal
 #   the tag, and a docs/safety/risk-report-* must exist (ADR 0005/0006).
 # - `safety/v*` tags: policy-only check (SAFETY.md header == tag).
+# Every pushed tag matching v*, safety/v*, or pause/* must be signed —
+# the verify-tag job runs `git verify-tag` (keys in-repo at
+# docs/safety/MAINTAINER_PUBKEYS.asc), backing the tag-protection
+# ruleset created by scripts/ci/apply-tag-protection.sh.
 # Today there is no code, so the artifact is the docs bundle; extend the
 # artifact step with cargo binaries when the workspace lands. Attestation
 # uses GitHub's Sigstore-backed provenance (public Rekor); verify with
-# `gh attestation verify <file> --repo kudosscience/clawbank`. Never put
-# raw exploit payloads or peer IPs in attested artifacts (ADR 0005).
+# `gh attestation verify <file> --repo kudosscience/clawbank`, fully
+# offline with bundle plus trust root per docs/safety/verify-runbook.md.
+# The hygiene job fails the release if the bundle holds anything but
+# digests plus summaries (no IPs, multiaddrs, or key material, ADR 0005).
 
 name: Release
 
@@ -41,6 +47,25 @@ jobs:
           fi
       - run: bash scripts/ci/release-gate.sh "${{ steps.v.outputs.kind }}" "${{ steps.v.outputs.version }}"
 
+  verify-tag:
+    name: verify-tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-tags: true
+      - run: |
+          # Trust the in-repo maintainer keys before verifying, so the
+          # check depends on the repo, not on any server-side keyring.
+          gpg --import docs/safety/MAINTAINER_PUBKEYS.asc 2>/dev/null || true
+          git config gpg.ssh.allowedSignersFile .github/trusted-keys/allowed_signers || true
+          tag="${GITHUB_REF_NAME}"
+          case "$tag" in
+            safety/*|pause/*|v*) git verify-tag "$tag" ;;
+            *) echo "verify-tag: ref $tag is not a release tag (nothing to verify)" ;;
+          esac
+
   artifact:
     name: artifact
     needs: gate
@@ -63,7 +88,7 @@ jobs:
 
   attest:
     name: attest
-    needs: [gate, artifact]
+    needs: [gate, verify-tag, artifact, hygiene]
     if: needs.gate.outputs.kind == 'code'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -80,9 +105,23 @@ jobs:
         with:
           subject-path: "dist/*"
 
+  hygiene:
+    name: hygiene
+    needs: [gate, artifact]
+    if: needs.gate.outputs.kind == 'code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-artifact
+          path: dist/
+      - run: bash scripts/ci/attestation-hygiene.sh dist/
+
   publish:
     name: publish
-    needs: [gate, artifact]
+    needs: [gate, artifact, attest, hygiene]
     if: needs.gate.outputs.kind == 'code'
     runs-on: ubuntu-latest
     timeout-minutes: 10
