@@ -20,7 +20,7 @@
 //! symlinked directories (never traversed: no cycles, no escape from the
 //! tree), and the generated `Cargo.lock` (which names the curve25519
 //! `fiat-crypto` primitive — not a bridge). Prose that must discuss gated capabilities is
-//! allowlisted: `docs/adr/` decision records and `docs/safety/` safety docs,
+//! allowlisted: `SAFETY.md` (repo-root commitment), `docs/adr/` decision records and `docs/safety/` safety docs,
 //! plus the two gate-owned files that define the level and this term list. A
 //! proposal doc never satisfies the pause rule; the evidence procedure in
 //! `docs/safety/fal-level.md` still applies before the level may rise.
@@ -76,7 +76,11 @@ const GATED_TERMS: &[&str] = &[
 const ALLOWLIST_PREFIXES: &[&str] = &["docs/adr/", "docs/safety/"];
 
 /// Gate-owned files allowed to *name* gated terms (exact repo-root paths).
+/// `SAFETY.md` is the versioned public commitment (ADR-0005 Docs 01): it
+/// must state the FAL-3 threshold list to be legible, so its prose is
+/// allowlisted like `docs/adr/` and `docs/safety/`.
 const ALLOWLIST_FILES: &[&str] = &[
+    "SAFETY.md",
     "crates/clawbank-safety/src/lib.rs",
     "crates/clawbank-safety/tests/fal_gate.rs",
 ];
@@ -345,6 +349,7 @@ mod scanner_tests {
                 "escrow, lending, bridge\n",
             ),
             ("docs/safety/fal-level.md", "fiat bridge, marketplace\n"),
+            ("SAFETY.md", "escrow, lending, fiat bridge, marketplace\n"),
         ]);
         assert!(scan(&dir).is_empty());
     }
