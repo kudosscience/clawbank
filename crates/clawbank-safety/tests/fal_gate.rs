@@ -136,6 +136,30 @@ fn match_terms(normalized: &str) -> Vec<String> {
         .collect()
 }
 
+/// FAL-3 threshold markers `SAFETY.md` must state for the commitment to stay
+/// legible. Allowlisting the file (so it may discuss gated capabilities)
+/// must not let a gutted version-header-only file pass both gates, so this
+/// list is asserted separately in `safety_md_states_fal3_thresholds`.
+const SAFETY_THRESHOLD_MARKERS: &[&str] = &[
+    "escrow",
+    "lending",
+    "borrowing",
+    "margin",
+    "yield",
+    "bridge",
+    "marketplace",
+    "autonomous spend",
+];
+
+fn missing_threshold_markers(text: &str) -> Vec<String> {
+    let normalized = normalize(text);
+    SAFETY_THRESHOLD_MARKERS
+        .iter()
+        .filter(|marker| !normalized.contains(**marker))
+        .map(|marker| marker.to_string())
+        .collect()
+}
+
 /// Walk `root`, returning one entry per offending file: its path plus every
 /// gated term found. Hidden dot-directories, `target/` build output, and
 /// symlinked directories are never traversed (a symlink to an ancestor
@@ -234,6 +258,20 @@ fn no_fal3_capabilities_below_fal3() {
             ))
             .collect::<Vec<_>>()
             .join("\n"),
+    );
+}
+
+#[test]
+fn safety_md_states_fal3_thresholds() {
+    let root = workspace_root();
+    let text = std::fs::read_to_string(root.join("SAFETY.md"))
+        .expect("SAFETY.md must exist (ADR-0005 Docs 01)");
+    let missing = missing_threshold_markers(&text);
+    assert!(
+        missing.is_empty(),
+        "SAFETY.md must state the FAL-3 threshold list for the commitment to \
+         stay legible; missing marker(s): {} — see SAFETY.md §2/§3.3 and ADR-0004",
+        missing.join(", "),
     );
 }
 
@@ -352,6 +390,21 @@ mod scanner_tests {
             ("SAFETY.md", "escrow, lending, fiat bridge, marketplace\n"),
         ]);
         assert!(scan(&dir).is_empty());
+    }
+
+    #[test]
+    fn threshold_markers_accept_a_full_list() {
+        let text = "escrow lending borrowing margin yield \
+            fiat crypto bridges compute marketplace \
+            policy-based autonomous spending";
+        assert!(missing_threshold_markers(text).is_empty());
+    }
+
+    #[test]
+    fn threshold_markers_flag_a_gutted_file() {
+        let missing = missing_threshold_markers("# Safety\n\nVersion: 0.1.0\n");
+        assert_eq!(missing.len(), SAFETY_THRESHOLD_MARKERS.len());
+        assert!(missing.contains(&"escrow".to_string()));
     }
 
     #[test]

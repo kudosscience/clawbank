@@ -158,10 +158,13 @@ CI on every PR; the full FAL-2 proof (P8 harness per release plus the
 6-month heartbeat, with pause-trigger and coverage/publish dates per
 ADR-0006) is planned ([#41](https://github.com/kudosscience/clawbank/issues/41),
 [#42](https://github.com/kudosscience/clawbank/issues/42),
-[#43](https://github.com/kudosscience/clawbank/issues/43)). Until that
-harness lands, the case rests on the blast-radius bound plus the
-implemented gates, not on adversarial results that do not yet exist. Full
-posture: [safety case §6](docs/safety/mvp-safety-case.md#6-evaluation-posture-what-proves-it).
+[#43](https://github.com/kudosscience/clawbank/issues/43)). Declaring FAL-2
+names the design scope (per ADR-0004) and the level the gate pins — it does
+not claim the rest of the FAL-2 bundle is done, and the S2 term gate proves
+only the absence of FAL-3 capabilities, not the completeness of FAL-2
+controls. Until that harness lands, the case rests on the blast-radius
+bound plus the implemented gates, not on adversarial results that do not
+yet exist. Full posture: [safety case §6](docs/safety/mvp-safety-case.md#6-evaluation-posture-what-proves-it).
 
 ## 5. Follow-up, deployment outcomes, and governance (Docs 02 owns the operating text)
 
