@@ -12,8 +12,8 @@ Sigstore-backed attestation (public Rekor).
 ```sh
 # Trust the maintainer keys pinned in-repo (GPG path):
 gpg --import docs/safety/MAINTAINER_PUBKEYS.asc
-gpg --fingerprint B32D6EFC6320085E
-# expect: 7785 5329 CFC8 2BE2 0807 96E1 B32D 6EFC 6320 085E
+gpg --fingerprint AA5AEB7313B2A916
+# expect: D23D 4D17 9B4C 1D45 25BB A1EF AA5A EB73 13B2 A916
 
 # ... or the SSH path (tags cut with gpg.format=ssh):
 git config gpg.ssh.allowedSignersFile .github/trusted-keys/allowed_signers
@@ -36,7 +36,7 @@ never applied.
 ```sh
 git fetch --tags
 git verify-tag safety/v0.2.0
-# GPG-signed tag: prints Good signature ... B32D6EFC6320085E
+# GPG-signed tag: prints Good signature ... AA5AEB7313B2A916
 # SSH-signed tag (gpg.format=ssh): prints
 #   Good "git" signature for 45144290+kudosscience@users.noreply.github.com with ED25519 key SHA256:av7CIaWccVRNZkIRVrYNEHMwNZ0GbzRvweEhHZSSMHo
 git show safety/v0.2.0 --no-patch --format='%T %aN'
